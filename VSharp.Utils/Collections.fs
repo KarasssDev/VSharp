@@ -4,10 +4,10 @@ open System.Collections.Generic
 
 module public Seq =
     let foldi f st xs =
-        let i = ref (-1)
+        let mutable i = -1
         Seq.fold (fun s t ->
-            i := !i + 1
-            f s !i t) st xs
+            i <- i + 1
+            f s i t) st xs
 
     let public cons x xs = seq {
         yield x
@@ -32,6 +32,11 @@ module public Seq =
         Array.mapFold detachOne (idx, lenProd) (Array.init lengths.Length id) |> fst
 
 module public List =
+    let public foldi f st xs =
+        let mutable i = -1
+        List.fold (fun s t ->
+            i <- i + 1
+            f s i t) st xs
     let rec private mappedPartitionAcc f left right = function
         | [] -> (List.rev left, List.rev right)
         | x::xs ->

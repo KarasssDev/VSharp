@@ -6,7 +6,6 @@ open System.Reflection
 [<AutoOpen>]
 module API =
     val ConfigureSolver : SolverInteraction.ISolver -> unit
-    val ConfigureIncrementalSolver : SolverInteraction.IIncrementalSolver -> unit
     val ConfigureSimplifier : SolverInteraction.ISimplifier -> unit
     val Reset : unit -> unit
     val SaveConfiguration : unit -> unit

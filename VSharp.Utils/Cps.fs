@@ -15,6 +15,16 @@ module public Cps =
             | [] -> k []
             | x::xs' -> f x (fun y -> mapk f xs' (k << cons y))
 
+        let rec mapik f xs k =
+            let mutable i = -1
+            let rec mapikRec f xs k =
+                match xs with
+                | [] -> k []
+                | x::xs' ->
+                    i <- i + 1
+                    f x i (fun y -> mapikRec f xs' (k << cons y))
+            mapikRec f xs k
+
         let rec choosek f xs k =
             match xs with
             | [] -> k []

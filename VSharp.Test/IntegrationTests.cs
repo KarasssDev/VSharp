@@ -126,9 +126,9 @@ namespace VSharp.Test
 
             private TestResult Explore(TestExecutionContext context)
             {
-                Core.API.ConfigureSolver(SolverPool.mkSolver());
-                Core.API.ConfigureIncrementalSolver(SolverPool.mkIncrementalSolver());
-                Core.API.ConfigureSimplifier(new Simplification.Simplifier());
+                var solver = SolverPool.mkSolver();
+                Core.API.ConfigureSolver(solver);
+                Core.API.ConfigureSimplifier(new Simplification.Simplifier((Core.SolverInteraction.IIncrementalSolver)solver));
                 var methodInfo = innerCommand.Test.Method.MethodInfo;
                 try
                 {

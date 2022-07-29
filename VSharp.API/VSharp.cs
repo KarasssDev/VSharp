@@ -85,9 +85,9 @@ namespace VSharp
                     timeout,
                     false);
             SILI explorer = new SILI(options);
-            Core.API.ConfigureSolver(SolverPool.mkSolver());
-            Core.API.ConfigureIncrementalSolver(SolverPool.mkIncrementalSolver());
-            Core.API.ConfigureSimplifier(new Simplification.Simplifier());
+            var solver = SolverPool.mkSolver();
+            Core.API.ConfigureSolver(solver);
+            Core.API.ConfigureSimplifier(new Simplification.Simplifier(solver as Core.SolverInteraction.IIncrementalSolver));
             foreach (var method in methods)
             {
                 if (method == method.Module.Assembly.EntryPoint)
