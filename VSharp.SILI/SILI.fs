@@ -230,7 +230,7 @@ type public SILI(options : SiliOptions) =
                     !!(IsNullReference this) |> AddConstraint initialState
                     Some this
             let parameters = SILI.AllocateByRefParameters initialState method
-            ILInterpreter.InitFunctionFrame initialState method this (Some parameters)
+            Memory.InitFunctionFrame initialState method this (Some parameters)
             let cilStates = ILInterpreter.CheckDisallowNullAssumptions cilState method false
             assert (List.length cilStates = 1)
             let [cilState] = cilStates
@@ -253,7 +253,7 @@ type public SILI(options : SiliOptions) =
                 let argsNumber = MakeNumber mainArguments.Length
                 Memory.AllocateConcreteVectorArray state argsNumber stringType args
             let arguments = Option.map (argsToState >> Some >> List.singleton) optionArgs
-            ILInterpreter.InitFunctionFrame state method None arguments
+            Memory.InitFunctionFrame state method None arguments
             if Option.isNone optionArgs then
                 // NOTE: if args are symbolic, constraint 'args != null' is added
                 let parameters = method.Parameters
@@ -267,7 +267,7 @@ type public SILI(options : SiliOptions) =
                     | StateModel(modelState, _) -> modelState
                     | _ -> __unreachable__()
                 let argsForModel = Memory.AllocateVectorArray modelState (MakeNumber 0) typeof<String>
-                Memory.WriteLocalVariable modelState (ParameterKey argsParameter) argsForModel
+                Memory.WriteStackLocation modelState (ParameterKey argsParameter) argsForModel
             Memory.InitializeStaticMembers state method.DeclaringType
             let initialState = makeInitialState method state
             [initialState]
