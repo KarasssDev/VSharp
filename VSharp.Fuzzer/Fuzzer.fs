@@ -1,4 +1,4 @@
-namespace Fuzzer
+namespace VSharp.Fuzzer
 
 open System
 open System.Collections.Generic
@@ -19,9 +19,10 @@ type FuzzingResult =
     | Returned of (obj * Type) array * obj
 
 // TODO: refactor module: 'Fuzzer' class has method parameter
-type Fuzzer(method : Method) =
+type Fuzzer ()  =
 
-    let methodBase = (method :> IMethod).MethodBase
+    let mutable method = Unchecked.defaultof<IMethod>
+    let mutable methodBase = Unchecked.defaultof<MethodBase>
     let typeMocks = Dictionary<Type list, ITypeMock>()
 
     member val private Config = defaultFuzzerConfig with get, set
@@ -39,8 +40,6 @@ type Fuzzer(method : Method) =
             | Some (StateModel (_, typeModel)) -> typeModel
             | None -> typeModel.CreateEmpty()
             | _ -> __unreachable__()
-
-        let methodBase = method.MethodBase
 
         try
             match SolveGenericMethodParameters typeModel method with
@@ -74,20 +73,32 @@ type Fuzzer(method : Method) =
         { Method = methodBase; ArgsInfo = argsInfo; ThisInfo = thisInfo }
 
     member private this.FuzzOnce (methodInfo: FuzzingMethodInfo) (rnd: Random) =
-        let method = methodInfo.Method
-        let args = methodInfo.ArgsInfo |> Array.map (fun (config, t) -> this.Generator rnd config t, t)
-        let mutable obj = null
-        if Reflection.hasThis method then
-            let config, t = methodInfo.ThisInfo.Value
-            obj <- this.Generator rnd config t
-
-        let argsWithThis = Array.append [|obj, method.DeclaringType|] args
-
         try
-            let returned = method.Invoke(obj, Array.map fst args)
-            Returned (argsWithThis, returned)
+            Logger.error $"Try fuzz once"
+            let method = methodInfo.Method
+            let args = methodInfo.ArgsInfo |> Array.map (fun (config, t) -> this.Generator rnd config t, t)
+            let mutable obj = null
+            if Reflection.hasThis method then
+                let config, t = methodInfo.ThisInfo.Value
+                obj <- this.Generator rnd config t
+
+            let argsWithThis = Array.append [|obj, method.DeclaringType|] args
+
+            try
+                let returned = method.Invoke(obj, Array.map fst args)
+                Logger.error $"Fuzzed succ"
+                Returned (argsWithThis, returned) |> Some
+            with
+            | :? TargetInvocationException as e -> Logger.error $"Fuzzed succ"; Thrown (argsWithThis, e.InnerException) |> Some
         with
-        | e -> Thrown (argsWithThis, e)
+            | e ->
+                Logger.error $"Fuzzed failed with: {e.Message}"
+                None
+
+    member this.FuzzOnceWithTimeout (methodInfo: FuzzingMethodInfo) (rnd: Random) =
+        let fuzzOnce = System.Threading.Tasks.Task.Run(fun () -> this.FuzzOnce methodInfo rnd)
+        let finished = fuzzOnce.Wait(this.Config.Timeout)
+        if finished then fuzzOnce.Result else Logger.error "Time limit"; None
 
 //    pc -- Empty
 //    evaluationStack -- Result (in case of generation), Empty (in case of seed)
@@ -146,8 +157,7 @@ type Fuzzer(method : Method) =
     member private this.FuzzingResultToInitialState (result: FuzzingResult) =
         match result with
         | Returned (args, _)
-        | Thrown(args, _) ->
-            this.FillState args
+        | Thrown(args, _) -> this.FillState args
 
     member private this.FuzzingResultToCompletedState (result: FuzzingResult) =
         match result with
@@ -172,18 +182,23 @@ type Fuzzer(method : Method) =
         let rndGenerator = Random(seed)
         [0..this.Config.MaxTest]
         |> List.map (fun _ -> Random(rndGenerator.NextInt64() |> int))
-        |> List.map (this.FuzzOnce info)
+        |> List.map (this.FuzzOnceWithTimeout info)
+        |> List.choose id
         |> List.map this.FuzzingResultToCompletedState
         |> Seq.ofList
 
-    member this.Fuzz () =
+    member this.Fuzz target =
+        method <- target
+        methodBase <- method.MethodBase
+
         let seed = Int32.MaxValue // Magic const!!!!
         let info = this.GetInfo None
         let rndGenerator = Random(seed)
         [0..this.Config.MaxTest]
         |> List.map (fun _ -> Random(rndGenerator.Next() |> int))
-        |> List.map (this.FuzzOnce info)
-        |> List.map this.FuzzingResultToInitialState
+        |> List.map (this.FuzzOnceWithTimeout info)
+        |> List.choose id
+        |> List.map this.FuzzingResultToCompletedState
         |> Seq.ofList
 
     member this.Configure config =

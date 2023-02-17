@@ -7,6 +7,7 @@ let rec generate (rnd: Random) (conf: Config.GeneratorConfig) (t: Type) =
     | PrimitiveGenerator.Primitive -> PrimitiveGenerator.generate rnd conf t
     | EnumGenerator.Enum -> EnumGenerator.generate rnd conf t
     | ArrayGenerator.Array -> ArrayGenerator.generate generate rnd conf t
+    | DelegateGenerator.Delegate -> DelegateGenerator.generate generate rnd conf t
     | InterfaceGenerator.Interface -> InterfaceGenerator.generate generate rnd conf t
     | ClassGenerator.Class -> ClassGenerator.generate generate rnd conf t
     | _ -> VSharp.Prelude.__unreachable__()

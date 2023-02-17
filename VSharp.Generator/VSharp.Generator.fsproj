@@ -10,6 +10,7 @@
         <Compile Include="PrimitiveGenerator.fs" />
         <Compile Include="EnumGenerator.fs" />
         <Compile Include="ArrayGenerator.fs" />
+        <Compile Include="DelegateGenerator.fs" />
         <Compile Include="InterfaceGenerator.fs" />
         <Compile Include="ClassGenerator.fs" />
         <Compile Include="Generator.fs" />
@@ -23,6 +24,7 @@
 
     <ItemGroup>
       <PackageReference Include="FsCheck" Version="2.16.5" />
+      <PackageReference Include="FSharp.Core" Version="7.0.0" />
     </ItemGroup>
 
 </Project>

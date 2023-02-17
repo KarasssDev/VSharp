@@ -28,7 +28,7 @@ let generate (rnd: Random) (conf: GeneratorConfig) (t: Type) =
     size <- nextSize
     let stdGen = stdGen
     let size = size
-
+    // Ловить type not supported
     let res: obj =
         match t with
         | _ when t = typeof<int8> -> Arb.generate<int8>.Eval(size, stdGen)
@@ -41,9 +41,7 @@ let generate (rnd: Random) (conf: GeneratorConfig) (t: Type) =
         | _ when t = typeof<uint64> -> Arb.generate<uint64>.Eval(size, stdGen)
         | _ when t = typeof<float> -> Arb.generate<float>.Eval(size, stdGen) // TODO: check size
         | _ when t = typeof<double> -> Arb.generate<double>.Eval(size, stdGen)
-        | _ when t = typeof<char> ->
-            // Arb.generate<char>.Eval(size, stdGen)
-            rnd.Next(33, int Char.MaxValue) |> char |> box
+        | _ when t = typeof<char> -> rnd.Next(33, int Char.MaxValue) |> char |> box
         | _ when t = typeof<string> -> Arb.generate<string>.Eval(conf.StringMaxSize, stdGen)
         | _ when t = typeof<byte> -> Arb.generate<byte>.Eval(size, stdGen)
         | _ when t = typeof<bool> -> Arb.generate<bool>.Eval(size, stdGen)

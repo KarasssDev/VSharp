@@ -70,6 +70,12 @@ module public Reflection =
         let m = resolveModule assemblyName moduleName
         m.ResolveMethod(token)
 
+    let resolveMethodBaseFromAssembly (assembly: Assembly) (moduleName: string) (token: int32) =
+        let m =
+            assembly.Modules
+            |> Seq.find (fun m -> m.FullyQualifiedName = moduleName)
+        m.ResolveMethod(token)
+
     let private retrieveMethodsGenerics (method : MethodBase) =
         match method with
         | :? MethodInfo as mi -> mi.GetGenericArguments()
@@ -102,6 +108,7 @@ module public Reflection =
         let methodGenerics = retrieveMethodsGenerics method
         method.Module.ResolveMember(token, typGenerics, methodGenerics)
 
+    // TODO resolve from assembly
     // --------------------------------- Methods --------------------------------
 
     // TODO: what if return type is generic?
