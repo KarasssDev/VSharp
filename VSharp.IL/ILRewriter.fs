@@ -7,130 +7,10 @@ open System.Runtime.InteropServices
 
 [<type: StructLayout(LayoutKind.Sequential, Pack=1, CharSet=CharSet.Ansi)>]
 type probes = {
-    mutable ldarg_0 : uint64
-    mutable ldarg_1 : uint64
-    mutable ldarg_2 : uint64
-    mutable ldarg_3 : uint64
-    mutable ldarg_S : uint64
-    mutable ldarg : uint64
-    mutable ldarga : uint64
-
-    mutable ldloc_0 : uint64
-    mutable ldloc_1 : uint64
-    mutable ldloc_2 : uint64
-    mutable ldloc_3 : uint64
-    mutable ldloc_S : uint64
-    mutable ldloc : uint64
-    mutable ldloca : uint64
-
-    mutable starg_S : uint64
-    mutable starg : uint64
-    mutable stloc_0 : uint64
-    mutable stloc_1 : uint64
-    mutable stloc_2 : uint64
-    mutable stloc_3 : uint64
-    mutable stloc_S : uint64
-    mutable stloc : uint64
-
-    mutable ldc : uint64
-    mutable dup : uint64
-    mutable pop : uint64
-
+    mutable trackCoverage : uint64
     mutable brtrue : uint64
     mutable brfalse : uint64
     mutable switch : uint64
-
-    mutable unOp : uint64
-    mutable binOp : uint64
-    mutable execBinOp_4 : uint64
-    mutable execBinOp_8 : uint64
-    mutable execBinOp_f4 : uint64
-    mutable execBinOp_f8 : uint64
-    mutable execBinOp_p : uint64
-    mutable execBinOp_8_4 : uint64
-    mutable execBinOp_4_p : uint64
-    mutable execBinOp_p_4 : uint64
-    mutable execBinOp_4_ovf : uint64
-    mutable execBinOp_8_ovf : uint64
-    mutable execBinOp_f4_ovf : uint64
-    mutable execBinOp_f8_ovf : uint64
-    mutable execBinOp_p_ovf : uint64
-    mutable execBinOp_8_4_ovf : uint64
-    mutable execBinOp_4_p_ovf : uint64
-    mutable execBinOp_p_4_ovf : uint64
-
-    mutable ldind : uint64
-    mutable stind : uint64
-    mutable execStind_I1 : uint64
-    mutable execStind_I2 : uint64
-    mutable execStind_I4 : uint64
-    mutable execStind_I8 : uint64
-    mutable execStind_R4 : uint64
-    mutable execStind_R8 : uint64
-    mutable execStind_ref : uint64
-
-    mutable conv : uint64
-    mutable conv_Ovf : uint64
-
-    mutable newarr : uint64
-    mutable localloc : uint64
-    mutable ldobj : uint64
-    mutable ldstr : uint64
-    mutable ldtoken : uint64
-    mutable stobj : uint64
-    mutable initobj : uint64
-    mutable ldlen : uint64
-
-    mutable cpobj : uint64
-    mutable execCpobj : uint64
-    mutable cpblk : uint64
-    mutable execCpblk : uint64
-    mutable initblk : uint64
-    mutable execInitblk : uint64
-
-    mutable castclass : uint64
-    mutable isinst : uint64
-
-    mutable box : uint64
-    mutable unbox : uint64
-    mutable unboxAny : uint64
-
-    mutable ldfld : uint64
-    mutable ldflda : uint64
-    mutable stfld_4 : uint64
-    mutable stfld_8 : uint64
-    mutable stfld_f4 : uint64
-    mutable stfld_f8 : uint64
-    mutable stfld_p : uint64
-    mutable stfld_struct : uint64
-
-    mutable ldsfld : uint64
-    mutable ldsflda : uint64
-    mutable stsfld : uint64
-
-    mutable ldelema : uint64
-    mutable ldelem : uint64
-    mutable execLdelema : uint64
-    mutable execLdelem : uint64
-
-    mutable stelem : uint64
-    mutable execStelem_I : uint64
-    mutable execStelem_I1 : uint64
-    mutable execStelem_I2 : uint64
-    mutable execStelem_I4 : uint64
-    mutable execStelem_I8 : uint64
-    mutable execStelem_R4 : uint64
-    mutable execStelem_R8 : uint64
-    mutable execStelem_Ref : uint64
-    mutable execStelem_Struct : uint64
-
-    mutable ckfinite : uint64
-    mutable sizeof : uint64
-    mutable ldftn : uint64
-    mutable ldvirtftn : uint64
-    mutable arglist : uint64
-    mutable mkrefany : uint64
-
     mutable enter : uint64
     mutable enterMain : uint64
     mutable leave : uint64
@@ -141,53 +21,6 @@ type probes = {
     mutable leaveMain_f8 : uint64
     mutable leaveMain_p : uint64
     mutable finalizeCall : uint64
-    mutable execCall : uint64
-    mutable call : uint64
-    mutable pushFrame : uint64
-    mutable callVirt : uint64
-    mutable newobj : uint64
-    mutable calli : uint64
-    mutable throw : uint64
-    mutable rethrow : uint64
-
-    mutable mem_p : uint64
-    mutable mem_1_idx : uint64
-    mutable mem_2_idx : uint64
-    mutable mem_4_idx : uint64
-    mutable mem_8_idx : uint64
-    mutable mem_f4_idx : uint64
-    mutable mem_f8_idx : uint64
-    mutable mem_p_idx : uint64
-    mutable mem2_4 : uint64
-    mutable mem2_8 : uint64
-    mutable mem2_f4 : uint64
-    mutable mem2_f8 : uint64
-//    mutable mem2_p : uint64
-    mutable mem2_8_4 : uint64
-//    mutable mem2_4_p : uint64
-//    mutable mem2_p_1 : uint64
-//    mutable mem2_p_2 : uint64
-//    mutable mem2_p_4 : uint64
-//    mutable mem2_p_8 : uint64
-//    mutable mem2_p_f4 : uint64
-//    mutable mem2_p_f8 : uint64
-//    mutable mem3_p_p_p : uint64
-//    mutable mem3_p_p_i1 : uint64
-//    mutable mem3_p_p_i2 : uint64
-//    mutable mem3_p_p_i4 : uint64
-//    mutable mem3_p_p_i8 : uint64
-//    mutable mem3_p_p_f4 : uint64
-//    mutable mem3_p_p_f8 : uint64
-//    mutable mem3_p_i1_p : uint64
-    mutable unmem_1 : uint64
-    mutable unmem_2 : uint64
-    mutable unmem_4 : uint64
-    mutable unmem_8 : uint64
-    mutable unmem_f4 : uint64
-    mutable unmem_f8 : uint64
-    mutable unmem_p : uint64
-
-    mutable dumpInstruction : uint64
 }
 with
     member private x.Probe2str =
@@ -203,6 +36,8 @@ with
 type signatureTokens = {
     mutable void_sig : uint32
     mutable bool_sig : uint32
+    mutable i_sig : uint32
+    mutable void_u_sig : uint32
     mutable void_u1_sig : uint32
     mutable void_u4_sig : uint32
     mutable void_i_sig : uint32
@@ -223,14 +58,10 @@ type signatureTokens = {
     mutable void_i_r4_sig : uint32
     mutable void_i_r8_sig : uint32
     mutable void_i_i_sig : uint32
-    mutable void_i4_i4_sig : uint32
-    mutable void_i4_i_sig : uint32
-    mutable void_i8_i4_sig : uint32
-    mutable void_i8_i8_sig : uint32
-    mutable void_r4_r4_sig : uint32
-    mutable void_r8_r8_sig : uint32
+    mutable void_i1_size_sig : uint32
     mutable bool_i_i4_sig : uint32
     mutable bool_i_i_sig : uint32
+    mutable bool_i_i_i4_sig : uint32
     mutable void_i_i_i_sig : uint32
     mutable void_i_i_i1_sig : uint32
     mutable void_i_i_i2_sig : uint32
@@ -238,15 +69,18 @@ type signatureTokens = {
     mutable void_i_i_i8_sig : uint32
     mutable void_i_i_r4_sig : uint32
     mutable void_i_i_r8_sig : uint32
-    mutable void_i_i1_i_sig : uint32
-    mutable void_i1_i1_i1_sig : uint32
-    mutable void_i2_i1_i1_sig : uint32
-    mutable void_i4_i1_i1_sig : uint32
-    mutable void_i8_i1_i1_sig : uint32
-    mutable void_r4_i1_i1_sig : uint32
-    mutable void_r8_i1_i1_sig : uint32
+    mutable void_i1_i1_offset_sig : uint32
+    mutable void_i2_i1_offset_sig : uint32
+    mutable void_i4_i1_offset_sig : uint32
+    mutable void_i8_i1_offset_sig : uint32
+    mutable void_r4_i1_offset_sig : uint32
+    mutable void_r8_i1_offset_sig : uint32
+    mutable void_i8_i4_offset_sig : uint32
+    mutable void_i8_i8_offset_sig : uint32
+    mutable void_r4_r4_offset_sig : uint32
+    mutable void_r8_r8_offset_sig : uint32
     mutable void_i_i1_i1_sig : uint32
-    mutable void_token_u2_bool_u4_u4_sig : uint32
+    mutable void_i_i4_i2_sig : uint32
     mutable void_offset_sig : uint32
     mutable void_u1_offset_sig : uint32
     mutable void_u2_offset_sig : uint32
@@ -256,6 +90,8 @@ type signatureTokens = {
     mutable void_r8_offset_sig : uint32
     mutable void_i_offset_sig : uint32
     mutable void_token_offset_sig : uint32
+    mutable void_size_offset_sig : uint32
+    mutable void_i4_i4_offset_sig : uint32
     mutable void_i_i1_offset_sig : uint32
     mutable void_i_i2_offset_sig : uint32
     mutable void_i_i4_offset_sig : uint32
@@ -264,7 +100,14 @@ type signatureTokens = {
     mutable void_i_r8_offset_sig : uint32
     mutable void_i_i_offset_sig : uint32
     mutable void_i_token_offset_sig : uint32
+    mutable void_i_u2_size_sig : uint32
+    mutable void_i_i4_i1_offset_sig : uint32
+    mutable void_i_i4_i2_offset_sig : uint32
     mutable void_i_i4_i4_offset_sig : uint32
+    mutable void_i_i4_i8_offset_sig : uint32
+    mutable void_i_i4_r4_offset_sig : uint32
+    mutable void_i_i4_r8_offset_sig : uint32
+    mutable void_i_i4_i_offset_sig : uint32
     mutable void_u2_i4_i4_offset_sig : uint32
     mutable void_u2_i4_i_offset_sig : uint32
     mutable void_u2_i8_i4_offset_sig : uint32
@@ -281,13 +124,24 @@ type signatureTokens = {
     mutable void_i_i_r4_offset_sig : uint32
     mutable void_i_i_r8_offset_sig : uint32
     mutable void_i_i1_i_offset_sig : uint32
-    mutable void_token_u4_u4_u4_sig : uint32
+    mutable void_i4_i_i4_offset_sig : uint32
+    mutable void_i4_i_i8_offset_sig : uint32
+    mutable void_i4_i_r4_offset_sig : uint32
+    mutable void_i4_i_r8_offset_sig : uint32
+    mutable void_i4_i_i_offset_sig : uint32
     mutable void_token_i_i_offset_sig : uint32
-    mutable void_token_i_i4_offset_sig : uint32
-    mutable void_token_i_i8_offset_sig : uint32
-    mutable void_token_i_r4_offset_sig : uint32
-    mutable void_token_i_r8_offset_sig : uint32
+    mutable void_i_i_i_i4_offset_sig : uint32
+    mutable void_i_i_i1_i4_offset_sig : uint32
+    mutable void_i_i_i2_i4_offset_sig : uint32
+    mutable void_i_i_i4_i4_offset_sig : uint32
+    mutable void_i_i_i8_i4_offset_sig : uint32
+    mutable void_i_i_r4_i4_offset_sig : uint32
+    mutable void_i_i_r8_i4_offset_sig : uint32
+    mutable void_i4_i4_i_i_offset_sig : uint32
+    mutable void_i_i4_i_i_offset_sig : uint32
     mutable void_token_token_bool_u2_offset_sig : uint32
+    mutable void_token_u4_u4_u4_u4_i1_sig : uint32
+    mutable void_token_u4_u2_bool_u4_u4_sig : uint32
 }
 with
     member private x.SigToken2str =
@@ -327,6 +181,12 @@ type rawExceptionHandler = {
     mutable matcher : uint32
 }
 
+type StackPushType =
+    | NoPush
+    | SymbolicPush
+    | ConcretePush
+    | StructPush of int * (int * int)[] // struct size + array of symbolic fields with size and offset on each one
+
 type rawMethodBody = {
     properties : rawMethodProperties
     assembly : string
@@ -342,19 +202,44 @@ type instrumentedMethodBody = {
     ehs : rawExceptionHandler array
 }
 
+// Lightweight types for representing coverage information
+[<Struct>]
+[<type: StructLayout(LayoutKind.Sequential, Pack=1, CharSet=CharSet.Ansi)>]
+type coverageLocation = {
+    moduleToken : int
+    methodToken : int
+    offset : int
+    threadToken : int
+}
+with
+    override x.ToString() =
+        sprintf "%x::%d" x.methodToken x.offset
 
 type evaluationStackCellType =
-    | I1 = 1
-    | I2 = 2
-    | I4 = 3
-    | I8 = 4
-    | R4 = 5
-    | R8 = 6
-    | I = 7
-    | Ref = 8
-    | Struct = 9
+    | I1 = 0
+    | I2 = 1
+    | I4 = 2
+    | I8 = 3
+    | R4 = 4
+    | R8 = 5
+    | I = 6
+    | Ref = 7
+    | Struct = 8
+    | RefLikeStruct = 9
 
-type stackState = evaluationStackCellType stack
+[<AutoOpen>]
+module StackStateActivePatterns =
+    let (|UnOp|_|) = function
+        | Some ((x, _) :: _) -> Some(x)
+        | _ -> None
+
+    let (|BinOp|_|) = function
+        | Some ((x, _) :: (y, _) :: _) -> Some(x, y)
+        | _ -> None
+
+    let (|TernOp|_|) = function
+        | Some ((x, _) :: (y, _) :: (z, _) :: _) -> Some(x, y, z)
+        | _ -> None
 
 type opcode =
     | OpCode of OpCode
@@ -412,6 +297,8 @@ type ilInstrOperand =
     | Arg16 of int16
     | Arg32 of int32
     | Arg64 of int64
+
+and stackState = (evaluationStackCellType * ilInstr list) stack
 
 and ilInstr = {
     mutable prev : ilInstr
@@ -481,71 +368,79 @@ module EvaluationStackTyper =
     let fail() = internalfail "Stack typer validation failed!"
 
     let typeAbstraction =
-        let result = System.Collections.Generic.Dictionary<int32 *int32, evaluationStackCellType>()
-        result.Add((typeof<int8>.Module.MetadataToken, typeof<int8>.MetadataToken), evaluationStackCellType.I1)
-        result.Add((typeof<uint8>.Module.MetadataToken, typeof<uint8>.MetadataToken), evaluationStackCellType.I1)
-        result.Add((typeof<char>.Module.MetadataToken, typeof<char>.MetadataToken), evaluationStackCellType.I2)
-        result.Add((typeof<bool>.Module.MetadataToken, typeof<bool>.MetadataToken), evaluationStackCellType.I1)
-        result.Add((typeof<int16>.Module.MetadataToken, typeof<int16>.MetadataToken), evaluationStackCellType.I2)
-        result.Add((typeof<uint16>.Module.MetadataToken, typeof<uint16>.MetadataToken), evaluationStackCellType.I2)
-        result.Add((typeof<int32>.Module.MetadataToken, typeof<int32>.MetadataToken), evaluationStackCellType.I4)
-        result.Add((typeof<uint32>.Module.MetadataToken, typeof<uint32>.MetadataToken), evaluationStackCellType.I4)
-        result.Add((typeof<int64>.Module.MetadataToken, typeof<int64>.MetadataToken), evaluationStackCellType.I8)
-        result.Add((typeof<uint64>.Module.MetadataToken, typeof<uint64>.MetadataToken), evaluationStackCellType.I8)
-        result.Add((typeof<float32>.Module.MetadataToken, typeof<float32>.MetadataToken), evaluationStackCellType.R4)
-        result.Add((typeof<double>.Module.MetadataToken, typeof<double>.MetadataToken), evaluationStackCellType.R8)
-        result.Add((typeof<IntPtr>.Module.MetadataToken, typeof<IntPtr>.MetadataToken), evaluationStackCellType.I)
-        result.Add((typeof<UIntPtr>.Module.MetadataToken, typeof<UIntPtr>.MetadataToken), evaluationStackCellType.I)
+        let result = System.Collections.Generic.Dictionary<string * int32, evaluationStackCellType>()
+        result.Add((typeof<int8>.Module.FullyQualifiedName, typeof<int8>.MetadataToken), evaluationStackCellType.I1)
+        result.Add((typeof<uint8>.Module.FullyQualifiedName, typeof<uint8>.MetadataToken), evaluationStackCellType.I1)
+        result.Add((typeof<char>.Module.FullyQualifiedName, typeof<char>.MetadataToken), evaluationStackCellType.I2)
+        result.Add((typeof<bool>.Module.FullyQualifiedName, typeof<bool>.MetadataToken), evaluationStackCellType.I1)
+        result.Add((typeof<int16>.Module.FullyQualifiedName, typeof<int16>.MetadataToken), evaluationStackCellType.I2)
+        result.Add((typeof<uint16>.Module.FullyQualifiedName, typeof<uint16>.MetadataToken), evaluationStackCellType.I2)
+        result.Add((typeof<int32>.Module.FullyQualifiedName, typeof<int32>.MetadataToken), evaluationStackCellType.I4)
+        result.Add((typeof<uint32>.Module.FullyQualifiedName, typeof<uint32>.MetadataToken), evaluationStackCellType.I4)
+        result.Add((typeof<int64>.Module.FullyQualifiedName, typeof<int64>.MetadataToken), evaluationStackCellType.I8)
+        result.Add((typeof<uint64>.Module.FullyQualifiedName, typeof<uint64>.MetadataToken), evaluationStackCellType.I8)
+        result.Add((typeof<float32>.Module.FullyQualifiedName, typeof<float32>.MetadataToken), evaluationStackCellType.R4)
+        result.Add((typeof<double>.Module.FullyQualifiedName, typeof<double>.MetadataToken), evaluationStackCellType.R8)
+        result.Add((typeof<IntPtr>.Module.FullyQualifiedName, typeof<IntPtr>.MetadataToken), evaluationStackCellType.I)
+        result.Add((typeof<UIntPtr>.Module.FullyQualifiedName, typeof<UIntPtr>.MetadataToken), evaluationStackCellType.I)
         result
 
     let abstractType (typ : Type) =
         if typ.IsValueType then
-            let typ = if typ.IsEnum then EnumUtils.getEnumUnderlyingTypeChecked typ else typ
+            let typ = if typ.IsEnum then typ.GetEnumUnderlyingType() else typ
             let result = ref evaluationStackCellType.I1
-            if typeAbstraction.TryGetValue((typ.Module.MetadataToken, typ.MetadataToken), result) then result.Value
+            if typeAbstraction.TryGetValue((typ.Module.FullyQualifiedName, typ.MetadataToken), result) then result.Value
+            elif Attribute.IsDefined(typ, typeof<Runtime.CompilerServices.IsByRefLikeAttribute>) then evaluationStackCellType.RefLikeStruct
             else evaluationStackCellType.Struct
         else evaluationStackCellType.Ref
 
-    let push (s : stackState) = abstractType >> Stack.push s
+    let private push (s : stackState) instr (abstractTyp : evaluationStackCellType) =
+        Stack.push s (abstractTyp, [instr])
 
-    let take (s : stackState) count =
+    let private abstractAndPush (s : stackState) offset (typ : Type) =
+        typ |> abstractType |> push s offset
+
+    let private take (s : stackState) count =
         if Stack.size s < count then fail()
         Seq.take count s |> Seq.rev |> List.ofSeq
 
-    let isI4 = function
+    let private isI4 = function
         | evaluationStackCellType.I1
         | evaluationStackCellType.I2
         | evaluationStackCellType.I4 -> true
         | _ -> false
 
-    let isFloat = function
+    let private isFloat = function
         | evaluationStackCellType.R4
         | evaluationStackCellType.R8 -> true
         | _ -> false
 
-    let mergeAbstraction a1 a2 =
+    let private mergeAbstraction a1 a2 =
         if a1 = a2 then a1
         elif isI4 a1 && isI4 a2 then evaluationStackCellType.I4
         elif isFloat a1 && isFloat a2 then evaluationStackCellType.R8
         else fail()
 
-    let mergeStackStates s1 s2 = List.map2 mergeAbstraction s1 s2
+    let private mergeCell (a1, o1) (a2, o2) =
+        (mergeAbstraction a1 a2, List.fold (fun acc i -> if List.exists (fun i' -> i'.offset = i.offset) acc then acc else i::acc) o1 o2)
 
-    let typeLdarg (m : Reflection.MethodBase) (s : stackState) idx =
+    let private mergeStackStates s1 s2 = List.map2 mergeCell s1 s2
+
+    let private typeLdarg (m : Reflection.MethodBase) (s : stackState) instr idx =
         let hasThis = m.CallingConvention.HasFlag(System.Reflection.CallingConventions.HasThis)
         if hasThis && idx = 0 then
-            Stack.push s evaluationStackCellType.Ref
+            Stack.push s (evaluationStackCellType.Ref, [instr])
         else
             let idx = if hasThis then idx - 1 else idx
-            m.GetParameters().[idx].ParameterType |> push s
+            m.GetParameters().[idx].ParameterType |> abstractAndPush s instr
 
-    let typeLdloc (m : Reflection.MethodBase) (s : stackState) idx =
-        m.GetMethodBody().LocalVariables.[idx].LocalType |> push s
+    let private typeLdloc (m : Reflection.MethodBase) (s : stackState) instr idx =
+        m.GetMethodBody().LocalVariables.[idx].LocalType |> abstractAndPush s instr
 
-    let typeBinop (s : stackState) =
+    let private typeBinop (s : stackState) instr =
         // See ECMA-335, sec. III.1.5
-        let t1, s = Stack.pop s
-        let t2, s = Stack.pop s
+        let (t1, _), s = Stack.pop s
+        let (t2, _), s = Stack.pop s
         let t1_is_I4 =
             match t1 with
             | evaluationStackCellType.I1
@@ -576,8 +471,8 @@ module EvaluationStackTyper =
         elif t1 = evaluationStackCellType.I || t1 = evaluationStackCellType.Ref then t1
         elif t2 = evaluationStackCellType.I || t2 = evaluationStackCellType.Ref then t2
         else fail()
-        |> Stack.push s
-    let typeShiftOp (s : stackState) =
+        |> withSnd [instr] |> Stack.push s
+    let private typeShiftOp (s : stackState) =
         // TODO: implement fully #do
         // See ECMA-335, sec. III.1.5, table III.6
         let _, s = Stack.pop s
@@ -620,23 +515,23 @@ module EvaluationStackTyper =
 //            Logger.trace "typer before: [%O] %O: %O" instr.offset (REMOVE_ME m instr) s.Length
             let opcodeValue = LanguagePrimitives.EnumOfValue op.Value
             match opcodeValue with
-            | OpCodeValues.Ldarg_0 -> typeLdarg m s 0
-            | OpCodeValues.Ldarg_1 -> typeLdarg m s 1
-            | OpCodeValues.Ldarg_2 -> typeLdarg m s 2
-            | OpCodeValues.Ldarg_3 -> typeLdarg m s 3
-            | OpCodeValues.Ldarg_S -> instr.Arg8 |> int |> typeLdarg m s
-            | OpCodeValues.Ldarg -> instr.Arg16 |> int |> typeLdarg m s
-            | OpCodeValues.Ldloc_0 -> typeLdloc m s 0
-            | OpCodeValues.Ldloc_1 -> typeLdloc m s 1
-            | OpCodeValues.Ldloc_2 -> typeLdloc m s 2
-            | OpCodeValues.Ldloc_3 -> typeLdloc m s 3
-            | OpCodeValues.Ldloc_S -> instr.Arg8 |> int |> typeLdloc m s
-            | OpCodeValues.Ldloc -> instr.Arg16 |> int |> typeLdloc m s
+            | OpCodeValues.Ldarg_0 -> typeLdarg m s instr 0
+            | OpCodeValues.Ldarg_1 -> typeLdarg m s instr 1
+            | OpCodeValues.Ldarg_2 -> typeLdarg m s instr 2
+            | OpCodeValues.Ldarg_3 -> typeLdarg m s instr 3
+            | OpCodeValues.Ldarg_S -> instr.Arg8 |> int |> typeLdarg m s instr
+            | OpCodeValues.Ldarg -> instr.Arg16 |> int |> typeLdarg m s instr
+            | OpCodeValues.Ldloc_0 -> typeLdloc m s instr 0
+            | OpCodeValues.Ldloc_1 -> typeLdloc m s instr 1
+            | OpCodeValues.Ldloc_2 -> typeLdloc m s instr 2
+            | OpCodeValues.Ldloc_3 -> typeLdloc m s instr 3
+            | OpCodeValues.Ldloc_S -> instr.Arg8 |> int |> typeLdloc m s instr
+            | OpCodeValues.Ldloc -> instr.Arg16 |> int |> typeLdloc m s instr
 
             | OpCodeValues.Ldarga_S
             | OpCodeValues.Ldloca_S
             | OpCodeValues.Ldarga
-            | OpCodeValues.Ldloca -> Stack.push s evaluationStackCellType.I
+            | OpCodeValues.Ldloca -> push s instr evaluationStackCellType.I
 
             | OpCodeValues.Stloc_0
             | OpCodeValues.Stloc_1
@@ -687,25 +582,25 @@ module EvaluationStackTyper =
             | OpCodeValues.Ldc_I4_7
             | OpCodeValues.Ldc_I4_8
             | OpCodeValues.Ldc_I4_S
-            | OpCodeValues.Ldc_I4 -> Stack.push s evaluationStackCellType.I4
-            | OpCodeValues.Ldc_I8 -> Stack.push s evaluationStackCellType.I8
-            | OpCodeValues.Ldc_R4 -> Stack.push s evaluationStackCellType.R4
-            | OpCodeValues.Ldc_R8 -> Stack.push s evaluationStackCellType.R8
-            | OpCodeValues.Ldnull -> Stack.push s evaluationStackCellType.Ref
+            | OpCodeValues.Ldc_I4 -> push s instr evaluationStackCellType.I4
+            | OpCodeValues.Ldc_I8 -> push s instr evaluationStackCellType.I8
+            | OpCodeValues.Ldc_R4 -> push s instr evaluationStackCellType.R4
+            | OpCodeValues.Ldc_R8 -> push s instr evaluationStackCellType.R8
+            | OpCodeValues.Ldnull -> push s instr evaluationStackCellType.Ref
 
             | OpCodeValues.Dup -> Stack.dup s
 
             | OpCodeValues.Ldind_I1
-            | OpCodeValues.Ldind_U1 -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I1
+            | OpCodeValues.Ldind_U1 -> push (Stack.drop 1 s) instr evaluationStackCellType.I1
             | OpCodeValues.Ldind_I2
-            | OpCodeValues.Ldind_U2 -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I2
+            | OpCodeValues.Ldind_U2 -> push (Stack.drop 1 s) instr evaluationStackCellType.I2
             | OpCodeValues.Ldind_I4
-            | OpCodeValues.Ldind_U4 -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I4
-            | OpCodeValues.Ldind_I8 -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I8
-            | OpCodeValues.Ldind_I -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I
-            | OpCodeValues.Ldind_R4 -> Stack.push (Stack.drop 1 s) evaluationStackCellType.R4
-            | OpCodeValues.Ldind_R8 -> Stack.push (Stack.drop 1 s) evaluationStackCellType.R8
-            | OpCodeValues.Ldind_Ref -> Stack.push (Stack.drop 1 s) evaluationStackCellType.Ref
+            | OpCodeValues.Ldind_U4 -> push (Stack.drop 1 s) instr evaluationStackCellType.I4
+            | OpCodeValues.Ldind_I8 -> push (Stack.drop 1 s) instr evaluationStackCellType.I8
+            | OpCodeValues.Ldind_I -> push (Stack.drop 1 s) instr evaluationStackCellType.I
+            | OpCodeValues.Ldind_R4 -> push (Stack.drop 1 s) instr evaluationStackCellType.R4
+            | OpCodeValues.Ldind_R8 -> push (Stack.drop 1 s) instr evaluationStackCellType.R8
+            | OpCodeValues.Ldind_Ref -> push (Stack.drop 1 s) instr evaluationStackCellType.Ref
             | OpCodeValues.Stind_Ref
             | OpCodeValues.Stind_I1
             | OpCodeValues.Stind_I2
@@ -730,7 +625,7 @@ module EvaluationStackTyper =
             | OpCodeValues.Mul_Ovf
             | OpCodeValues.Mul_Ovf_Un
             | OpCodeValues.Sub_Ovf
-            | OpCodeValues.Sub_Ovf_Un -> typeBinop s
+            | OpCodeValues.Sub_Ovf_Un -> typeBinop s instr
             | OpCodeValues.Shl
             | OpCodeValues.Shr
             | OpCodeValues.Shr_Un -> typeShiftOp s
@@ -739,85 +634,85 @@ module EvaluationStackTyper =
             | OpCodeValues.Cgt
             | OpCodeValues.Cgt_Un
             | OpCodeValues.Clt
-            | OpCodeValues.Clt_Un -> Stack.push (Stack.drop 2 s) evaluationStackCellType.I4
+            | OpCodeValues.Clt_Un -> push (Stack.drop 2 s) instr evaluationStackCellType.I4
 
             | OpCodeValues.Conv_I1
             | OpCodeValues.Conv_U1
             | OpCodeValues.Conv_Ovf_I1
             | OpCodeValues.Conv_Ovf_U1
             | OpCodeValues.Conv_Ovf_I1_Un
-            | OpCodeValues.Conv_Ovf_U1_Un -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I1
+            | OpCodeValues.Conv_Ovf_U1_Un -> push (Stack.drop 1 s) instr evaluationStackCellType.I1
             | OpCodeValues.Conv_I2
             | OpCodeValues.Conv_U2
             | OpCodeValues.Conv_Ovf_I2
             | OpCodeValues.Conv_Ovf_U2
             | OpCodeValues.Conv_Ovf_U2_Un
-            | OpCodeValues.Conv_Ovf_I2_Un -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I2
+            | OpCodeValues.Conv_Ovf_I2_Un -> push (Stack.drop 1 s) instr evaluationStackCellType.I2
             | OpCodeValues.Conv_I4
             | OpCodeValues.Conv_U4
             | OpCodeValues.Conv_Ovf_I4
             | OpCodeValues.Conv_Ovf_U4
             | OpCodeValues.Conv_Ovf_I4_Un
-            | OpCodeValues.Conv_Ovf_U4_Un -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I4
+            | OpCodeValues.Conv_Ovf_U4_Un -> push (Stack.drop 1 s) instr evaluationStackCellType.I4
             | OpCodeValues.Conv_I8
             | OpCodeValues.Conv_U8
             | OpCodeValues.Conv_Ovf_I8
             | OpCodeValues.Conv_Ovf_U8
             | OpCodeValues.Conv_Ovf_I8_Un
-            | OpCodeValues.Conv_Ovf_U8_Un -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I8
-            | OpCodeValues.Conv_R4 -> Stack.push (Stack.drop 1 s) evaluationStackCellType.R4
+            | OpCodeValues.Conv_Ovf_U8_Un -> push (Stack.drop 1 s) instr evaluationStackCellType.I8
+            | OpCodeValues.Conv_R4 -> push (Stack.drop 1 s) instr evaluationStackCellType.R4
             | OpCodeValues.Conv_R8
-            | OpCodeValues.Conv_R_Un -> Stack.push (Stack.drop 1 s) evaluationStackCellType.R8
+            | OpCodeValues.Conv_R_Un -> push (Stack.drop 1 s) instr evaluationStackCellType.R8
             | OpCodeValues.Conv_I
             | OpCodeValues.Conv_U
             | OpCodeValues.Conv_Ovf_I
             | OpCodeValues.Conv_Ovf_U
             | OpCodeValues.Conv_Ovf_I_Un
-            | OpCodeValues.Conv_Ovf_U_Un -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I
+            | OpCodeValues.Conv_Ovf_U_Un -> Stack.push (Stack.drop 1 s) (evaluationStackCellType.I, [instr])
 
-            | OpCodeValues.Ldobj -> Stack.push (Stack.drop 1 s) evaluationStackCellType.Struct
-            | OpCodeValues.Ldstr -> Stack.push s evaluationStackCellType.Ref
-            | OpCodeValues.Unbox -> Stack.push s evaluationStackCellType.I
+            | OpCodeValues.Ldobj -> Stack.push (Stack.drop 1 s) (evaluationStackCellType.Struct, [instr])
+            | OpCodeValues.Ldstr -> Stack.push s (evaluationStackCellType.Ref, [instr])
+            | OpCodeValues.Unbox -> Stack.push s (evaluationStackCellType.I, [instr])
             | OpCodeValues.Throw
             | OpCodeValues.Leave_S
             | OpCodeValues.Leave -> Stack.empty
 
             | OpCodeValues.Ldsfld ->
                 let fieldInfo = Reflection.resolveField m instr.Arg32
-                fieldInfo.FieldType |> push s
+                fieldInfo.FieldType |> abstractAndPush s instr
             | OpCodeValues.Ldfld ->
                 let s = Stack.drop 1 s
                 let fieldInfo = Reflection.resolveField m instr.Arg32
-                fieldInfo.FieldType |> push s
+                fieldInfo.FieldType |> abstractAndPush s instr
 
-            | OpCodeValues.Ldflda -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I
-            | OpCodeValues.Ldsflda -> Stack.push s evaluationStackCellType.I
+            | OpCodeValues.Ldflda -> Stack.push (Stack.drop 1 s) (evaluationStackCellType.I, [instr])
+            | OpCodeValues.Ldsflda -> Stack.push s (evaluationStackCellType.I, [instr])
 
             | OpCodeValues.Stfld -> Stack.drop 2 s
             | OpCodeValues.Stsfld -> Stack.drop 1 s
             | OpCodeValues.Stobj -> Stack.drop 2 s
             | OpCodeValues.Unbox_Any ->
                 let s = Stack.drop 1 s
-                Reflection.resolveType m instr.Arg32 |> push s
+                Reflection.resolveType m instr.Arg32 |> abstractAndPush s instr
             | OpCodeValues.Box
-            | OpCodeValues.Newarr -> Stack.push (Stack.drop 1 s) evaluationStackCellType.Ref
-            | OpCodeValues.Ldlen -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I
+            | OpCodeValues.Newarr -> push (Stack.drop 1 s) instr evaluationStackCellType.Ref
+            | OpCodeValues.Ldlen -> push (Stack.drop 1 s) instr evaluationStackCellType.I
 
-            | OpCodeValues.Ldelema -> Stack.push (Stack.drop 2 s) evaluationStackCellType.I
+            | OpCodeValues.Ldelema -> push (Stack.drop 2 s) instr evaluationStackCellType.I
             | OpCodeValues.Ldelem_I1
-            | OpCodeValues.Ldelem_U1 -> Stack.push (Stack.drop 2 s) evaluationStackCellType.I1
+            | OpCodeValues.Ldelem_U1 -> push (Stack.drop 2 s) instr evaluationStackCellType.I1
             | OpCodeValues.Ldelem_I2
-            | OpCodeValues.Ldelem_U2 -> Stack.push (Stack.drop 2 s) evaluationStackCellType.I2
+            | OpCodeValues.Ldelem_U2 -> push (Stack.drop 2 s) instr evaluationStackCellType.I2
             | OpCodeValues.Ldelem_I4
-            | OpCodeValues.Ldelem_U4 -> Stack.push (Stack.drop 2 s) evaluationStackCellType.I4
-            | OpCodeValues.Ldelem_I8 -> Stack.push (Stack.drop 2 s) evaluationStackCellType.I8
-            | OpCodeValues.Ldelem_I -> Stack.push (Stack.drop 2 s) evaluationStackCellType.I
-            | OpCodeValues.Ldelem_R4 -> Stack.push (Stack.drop 2 s) evaluationStackCellType.R4
-            | OpCodeValues.Ldelem_R8 -> Stack.push (Stack.drop 2 s) evaluationStackCellType.R8
-            | OpCodeValues.Ldelem_Ref -> Stack.push (Stack.drop 2 s) evaluationStackCellType.Ref
+            | OpCodeValues.Ldelem_U4 -> push (Stack.drop 2 s) instr evaluationStackCellType.I4
+            | OpCodeValues.Ldelem_I8 -> push (Stack.drop 2 s) instr evaluationStackCellType.I8
+            | OpCodeValues.Ldelem_I -> push (Stack.drop 2 s) instr evaluationStackCellType.I
+            | OpCodeValues.Ldelem_R4 -> push (Stack.drop 2 s) instr evaluationStackCellType.R4
+            | OpCodeValues.Ldelem_R8 -> push (Stack.drop 2 s) instr evaluationStackCellType.R8
+            | OpCodeValues.Ldelem_Ref -> push (Stack.drop 2 s) instr evaluationStackCellType.Ref
             | OpCodeValues.Ldelem ->
                 let s = Stack.drop 2 s
-                Reflection.resolveType m instr.Arg32 |> push s
+                Reflection.resolveType m instr.Arg32 |> abstractAndPush s instr
 
             | OpCodeValues.Stelem_I
             | OpCodeValues.Stelem_I1
@@ -830,17 +725,17 @@ module EvaluationStackTyper =
             | OpCodeValues.Stelem -> Stack.drop 3 s
 
             | OpCodeValues.Refanyval
-            | OpCodeValues.Ldvirtftn -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I
-            | OpCodeValues.Mkrefany -> Stack.push (Stack.drop 1 s) evaluationStackCellType.Ref
+            | OpCodeValues.Ldvirtftn -> push (Stack.drop 1 s) instr evaluationStackCellType.I
+            | OpCodeValues.Mkrefany -> push (Stack.drop 1 s) instr evaluationStackCellType.Ref
             | OpCodeValues.Ldtoken
             | OpCodeValues.Arglist
-            | OpCodeValues.Ldftn -> Stack.push s evaluationStackCellType.I
-            | OpCodeValues.Localloc -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I
+            | OpCodeValues.Ldftn -> push s instr evaluationStackCellType.I
+            | OpCodeValues.Localloc -> push (Stack.drop 1 s) instr evaluationStackCellType.I
             | OpCodeValues.Initobj -> Stack.drop 1 s
             | OpCodeValues.Cpblk -> Stack.drop 3 s
             | OpCodeValues.Initblk -> Stack.drop 3 s
-            | OpCodeValues.Sizeof -> Stack.push s evaluationStackCellType.I
-            | OpCodeValues.Refanytype -> Stack.push (Stack.drop 1 s) evaluationStackCellType.I4
+            | OpCodeValues.Sizeof -> push s instr evaluationStackCellType.I
+            | OpCodeValues.Refanytype -> push (Stack.drop 1 s) instr evaluationStackCellType.I4
 
             | OpCodeValues.Call
             | OpCodeValues.Callvirt
@@ -852,19 +747,21 @@ module EvaluationStackTyper =
                     if hasThis && opcodeValue <> OpCodeValues.Newobj then pops + 1
                     else pops
                 let s = Stack.drop pops s
-                let returnType = Reflection.getMethodReturnType callee
                 if opcodeValue = OpCodeValues.Newobj then
-                    Stack.push s evaluationStackCellType.Ref
+                    abstractAndPush s instr callee.DeclaringType
                 elif Reflection.hasNonVoidResult callee then
-                    push s returnType
+                    let returnType = Reflection.getMethodReturnType callee
+                    abstractAndPush s instr returnType
                 else s
             | OpCodeValues.Calli ->
                 // TODO: resolve and parse signature
-                internalfail "typeInstruction: Calli is not implemented"
+                __notImplemented__()
             | OpCodeValues.Ret ->
                 let s = if Reflection.hasNonVoidResult m then Stack.drop 1 s else s
                 if not (Stack.isEmpty s) then fail()
                 s
+            | OpCodeValues.Endfilter -> Stack.drop 1 s
+            | OpCodeValues.Endfinally -> Stack.empty
             | _ -> s
         | SwitchArg -> s
 //       Logger.trace "typer after: %O" res.Length
@@ -883,7 +780,9 @@ module EvaluationStackTyper =
                     match opcodeValue with
                     | OpCodeValues.Ret
                     | OpCodeValues.Throw
-                    | OpCodeValues.Rethrow -> []
+                    | OpCodeValues.Rethrow
+                    | OpCodeValues.Endfilter
+                    | OpCodeValues.Endfinally -> []
                     | OpCodeValues.Br_S
                     | OpCodeValues.Br
                     | OpCodeValues.Leave
@@ -902,22 +801,8 @@ module EvaluationStackTyper =
                 | Some s' ->
                     nxt.stackState <- Some (mergeStackStates s s'))
 
-    let createBodyStackState (m : Reflection.MethodBase) (startInstr : ilInstr) =
-        assert(startInstr.stackState = None)
-        startInstr.stackState <- Some Stack.empty
-        createStackState m startInstr
-
-    let createEHStackState (m : Reflection.MethodBase) (flags : int) (startInstr : ilInstr) =
-        let catchFlags = LanguagePrimitives.EnumToValue System.Reflection.ExceptionHandlingClauseOptions.Clause
-        if flags = catchFlags then // NOTE: is catch
-            startInstr.stackState <- Some [evaluationStackCellType.Ref] // TODO: finially and filter! #do
-        else startInstr.stackState <- Some Stack.empty
-        createStackState m startInstr
-
 [<AllowNullLiteral>]
 type ILRewriter(body : rawMethodBody) =
-    // TODO: get rid of IL rewriting in non-concolic mode
-    let concolicMode = false
     // If this line throws exception, we should improve resolving assemblies by names. Probably we should track assemblies from the directory of executed assembly
     let m = Reflection.resolveMethodBase body.assembly body.moduleName (int body.properties.token)
     let code = body.il
@@ -944,7 +829,7 @@ type ILRewriter(body : rawMethodBody) =
                         match instr.arg with
                         | Arg32 token ->
                             let callee = Reflection.resolveMethod m token
-                            Reflection.methodToString callee
+                            sprintf "%s [%x]" (Reflection.methodToString callee) token
                         | _ -> __unreachable__()
                     elif op = OpCodes.Calli then
                         match tokens with
@@ -1040,19 +925,9 @@ type ILRewriter(body : rawMethodBody) =
         Array.exists (fun eh -> x.InstrEq eh.handlerEnd instr) ehs
     member x.ILList = il
 
-    member private x.ReplaceBranchAlias (instr : ilInstr) (op : OpCode) (brop : OpCode) =
-        let newInstr = x.CopyInstruction instr
-        x.InsertAfter(instr, newInstr)
-        instr.opcode <- OpCode op
-        instr.arg <- NoArg
-        match instr.stackState with
-        | Some (_ :: _ :: tl)  -> newInstr.stackState <- Some(evaluationStackCellType.I4 :: tl)
-        | _ -> __unreachable__()
-        newInstr.opcode <- OpCode brop
-
     member private x.IsFloatBinOp (instr : ilInstr) =
         match instr.stackState with
-        | Some (x :: y :: _) ->
+        | Some ((x, _) :: (y, _) :: _) ->
             match x with
             | evaluationStackCellType.R4 -> assert(y = evaluationStackCellType.R4); true
             | evaluationStackCellType.R8 -> assert(y = evaluationStackCellType.R8); true
@@ -1164,37 +1039,6 @@ type ILRewriter(body : rawMethodBody) =
                         instr.arg <- Target <| x.InstrFromOffset offset
                     | _ -> invalidProgram "Wrong operand of branching instruction!")
 
-        EvaluationStackTyper.createBodyStackState m il.next
-
-        if concolicMode then
-            x.TraverseProgram (fun instr ->
-                match instr.opcode with
-                | OpCode op ->
-                    // Replace binary branch instructions with binop + branch
-                    match LanguagePrimitives.EnumOfValue op.Value with
-                    | OpCodeValues.Beq_S -> x.ReplaceBranchAlias instr OpCodes.Ceq OpCodes.Brtrue_S
-                    | OpCodeValues.Bge_S -> x.ReplaceBranchAlias instr (if x.IsFloatBinOp instr then OpCodes.Clt_Un else OpCodes.Clt) OpCodes.Brfalse_S
-                    | OpCodeValues.Bgt_S -> x.ReplaceBranchAlias instr OpCodes.Cgt OpCodes.Brtrue_S
-                    | OpCodeValues.Ble_S -> x.ReplaceBranchAlias instr (if x.IsFloatBinOp instr then OpCodes.Cgt_Un else OpCodes.Cgt)  OpCodes.Brfalse_S
-                    | OpCodeValues.Blt_S -> x.ReplaceBranchAlias instr OpCodes.Clt OpCodes.Brtrue_S
-                    | OpCodeValues.Bne_Un_S -> x.ReplaceBranchAlias instr OpCodes.Ceq OpCodes.Brfalse_S
-                    | OpCodeValues.Bge_Un_S -> x.ReplaceBranchAlias instr (if x.IsFloatBinOp instr then OpCodes.Clt else OpCodes.Clt_Un) OpCodes.Brfalse_S
-                    | OpCodeValues.Bgt_Un_S -> x.ReplaceBranchAlias instr OpCodes.Cgt_Un OpCodes.Brtrue_S
-                    | OpCodeValues.Ble_Un_S -> x.ReplaceBranchAlias instr (if x.IsFloatBinOp instr then OpCodes.Cgt else OpCodes.Cgt_Un)  OpCodes.Brfalse_S
-                    | OpCodeValues.Blt_Un_S -> x.ReplaceBranchAlias instr OpCodes.Clt_Un OpCodes.Brtrue_S
-                    | OpCodeValues.Beq -> x.ReplaceBranchAlias instr OpCodes.Ceq OpCodes.Brtrue
-                    | OpCodeValues.Bge -> x.ReplaceBranchAlias instr (if x.IsFloatBinOp instr then OpCodes.Clt_Un else OpCodes.Clt) OpCodes.Brfalse
-                    | OpCodeValues.Bgt -> x.ReplaceBranchAlias instr OpCodes.Cgt OpCodes.Brtrue
-                    | OpCodeValues.Ble -> x.ReplaceBranchAlias instr (if x.IsFloatBinOp instr then OpCodes.Cgt_Un else OpCodes.Cgt)  OpCodes.Brfalse
-                    | OpCodeValues.Blt -> x.ReplaceBranchAlias instr OpCodes.Clt OpCodes.Brtrue
-                    | OpCodeValues.Bne_Un -> x.ReplaceBranchAlias instr OpCodes.Ceq OpCodes.Brfalse
-                    | OpCodeValues.Bge_Un -> x.ReplaceBranchAlias instr (if x.IsFloatBinOp instr then OpCodes.Clt else OpCodes.Clt_Un) OpCodes.Brfalse
-                    | OpCodeValues.Bgt_Un -> x.ReplaceBranchAlias instr OpCodes.Cgt_Un OpCodes.Brtrue
-                    | OpCodeValues.Ble_Un -> x.ReplaceBranchAlias instr (if x.IsFloatBinOp instr then OpCodes.Cgt else OpCodes.Cgt_Un)  OpCodes.Brfalse
-                    | OpCodeValues.Blt_Un -> x.ReplaceBranchAlias instr OpCodes.Clt_Un OpCodes.Brtrue
-                    | _ -> ()
-                | _ -> ())
-
     member private x.RecalculateOffsets() =
         let mutable branch = false
         let mutable tryAgain = true
@@ -1247,10 +1091,13 @@ type ILRewriter(body : rawMethodBody) =
             tryEnd = (x.InstrFromOffset <| int (raw.tryOffset + raw.tryLength)).prev
             handlerBegin =
                 let start = x.InstrFromOffset <| int raw.handlerOffset
-                EvaluationStackTyper.createEHStackState m raw.flags start
                 start
             handlerEnd = (x.InstrFromOffset <| int (raw.handlerOffset + raw.handlerLength)).prev
-            matcher = if raw.flags &&& 0x0001 = 0 then ClassToken raw.matcher else Filter (x.InstrFromOffset <| int raw.matcher)
+            matcher =
+                if raw.flags &&& 0x0001 = 0 then ClassToken raw.matcher
+                else
+                    let filterStart = x.InstrFromOffset <| int raw.matcher
+                    Filter filterStart
         }
         ehs <- Array.map parseEH body.ehs
 
@@ -1358,5 +1205,16 @@ type ILRewriter(body : rawMethodBody) =
                 | ClassToken tok -> tok
                 | Filter instr -> instr.offset
         }
-        let ehs = Array.map encodeEH ehs
+        let probes = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(typeof<probes>) :?> probes
+        let ehs = Array.map (fun eh ->
+            Logger.trace "flags: %d" eh.flags
+            Logger.trace "matcher: %O" eh.matcher
+            Logger.trace "try begin: %s" <| x.ILInstrToString probes eh.tryBegin
+            Logger.trace "try end: %s" <| x.ILInstrToString probes eh.tryEnd
+            Logger.trace "try length: %d" <| eh.tryEnd.next.offset - eh.tryBegin.offset
+            Logger.trace "handler begin: %s" <| x.ILInstrToString probes eh.handlerBegin
+            Logger.trace "handler end: %s" <| x.ILInstrToString probes eh.handlerEnd
+            Logger.trace "handler length: %d" <| eh.handlerEnd.next.offset - eh.handlerBegin.offset
+            encodeEH eh) ehs
+//        let ehs = Array.map encodeEH ehs
         {properties = methodProps; il = Array.truncate (int methodProps.ilCodeSize) outputIL; ehs = ehs}

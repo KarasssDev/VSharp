@@ -280,10 +280,8 @@ and Method internal (m : MethodBase) as this =
                 let nextBBOffset = cfg.SortedOffsets.[idx + 1]
                 parsedInstrs |> Array.find (fun instr -> Offset.from (int instr.offset) = nextBBOffset)
             else parsedInstrs.[parsedInstrs.Length - 1].next
-        seq {
-            while not <| LanguagePrimitives.PhysicalEquality instr endInstr do
-                yield ILRewriter.PrintILInstr None None (x :> Core.IMethod).MethodBase instr
-                instr <- instr.next
+        //TODO: something rational here #removingConcolic
+        seq { ""
         }
 
     static member val internal CoverageZone : Method -> bool = fun _ -> true with get, set

@@ -4,6 +4,7 @@ open System
 open System.Diagnostics
 open System.IO
 open System.IO.Pipes
+open System.Runtime.InteropServices
 open VSharp
 
 type Message =
@@ -37,12 +38,24 @@ type private FuzzerPipeClient () =
         }
 
 type FuzzerInteraction (pathToAssembly, outputDir) =
+    // TODO: find correct path to the client
+    let extension =
+        if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then ".dll"
+        elif RuntimeInformation.IsOSPlatform(OSPlatform.Linux) then ".so"
+        elif RuntimeInformation.IsOSPlatform(OSPlatform.OSX) then ".dylib"
+        else __notImplemented__()
+    let pathToClient = "libvsharpConcolic" + extension
+    let profiler = sprintf "%s%c%s" (Directory.GetCurrentDirectory()) Path.DirectorySeparatorChar pathToClient
 
     let proc =
         let config =
             let info = ProcessStartInfo()
+            info.EnvironmentVariables.["CORECLR_PROFILER"] <- "{2800fea6-9667-4b42-a2b6-45dc98e77e9e}"
+            info.EnvironmentVariables.["CORECLR_ENABLE_PROFILING"] <- "1"
+            info.EnvironmentVariables.["CORECLR_PROFILER_PATH"] <- profiler
+            info.WorkingDirectory <- Directory.GetCurrentDirectory()
             info.FileName <- "dotnet"
-            info.Arguments <- $"/home/viktor/RiderProjects/VSharp/VSharp.Fuzzer/bin/Release/net6.0/VSharp.Fuzzer.dll %s{pathToAssembly} %s{outputDir}"
+            info.Arguments <- $"VSharp.Fuzzer.dll %s{pathToAssembly} %s{outputDir}"
             info.UseShellExecute <- false
             info.RedirectStandardInput <- false
             info.RedirectStandardOutput <- false

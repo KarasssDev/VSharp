@@ -72,7 +72,7 @@ type MethodWithBody internal (m : MethodBase) =
                 {flags = int eh.Flags; tryOffset = uint eh.TryOffset; tryLength = uint eh.TryLength; handlerOffset = uint eh.HandlerOffset; handlerLength = uint eh.HandlerLength; matcher = uint matcher}
             let ehs = methodBodyBytes.ExceptionHandlingClauses |> Seq.map createEH |> Array.ofSeq
             let body : rawMethodBody =
-                {properties = props; assembly = assemblyName; moduleName = moduleName; tokens = tokens; il = ilBytes; ehs = ehs}
+                {properties = props; assembly = assemblyName; tokens = tokens; moduleName = moduleName; il = ilBytes; ehs = ehs}
             let rewriter = ILRewriter(body)
             rewriter.Import()
             let result = rewriter.Export()

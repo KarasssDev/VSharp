@@ -102,7 +102,7 @@ type ClientMachine(entryPoint : Method, requestMakeStep : cilState -> unit, cilS
         if x.communicator.Connect() then
             x.probes <- x.communicator.ReadProbes()
             x.communicator.SendEntryPoint entryPoint.Module.FullyQualifiedName entryPoint.MetadataToken
-            x.instrumenter <- Instrumenter(x.communicator, (entryPoint :> IMethod).MethodBase, x.probes)
+            x.instrumenter <- Instrumenter(x.communicator, (entryPoint :> IMethod).MethodBase, __notImplemented__())
             true
         else false
 

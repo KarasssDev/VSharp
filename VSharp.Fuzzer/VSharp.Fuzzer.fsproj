@@ -4,12 +4,15 @@
         <TargetFramework>net6.0</TargetFramework>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <OutputType>Exe</OutputType>
+        <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     </PropertyGroup>
 
     <ItemGroup>
         <Compile Include="Config.fs" />
         <Compile Include="Fuzzer.fs" />
         <Compile Include="FuzzerInteraction.fs" />
+        <Compile Include="Coverage.fs" />
+        <Compile Include="InstrumenterCoverage.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 
@@ -19,6 +22,43 @@
       <ProjectReference Include="..\VSharp.SILI.Core\VSharp.SILI.Core.fsproj" />
       <ProjectReference Include="..\VSharp.TestGenerator\VSharp.TestGenerator.fsproj" />
       <ProjectReference Include="..\VSharp.Utils\VSharp.Utils.fsproj" />
+    </ItemGroup>
+
+    <Target Name="CloneDotnetRuntime" BeforeTargets="UnixBuildConcolic;WinBuildConcolic" Condition=" !Exists('../runtime') ">
+        <Exec Command="&#xA;            cd ../&#xA;            git clone https://github.com/dotnet/runtime.git&#xA;            cd runtime&#xA;            git checkout 3a25a7f1cc446b60678ed25c9d829420d6321eba" />
+    </Target>
+
+    <Target Name="UnixBuildConcolic" AfterTargets="BeforeBuild" Condition=" !$([MSBuild]::IsOSPlatform('Windows')) ">
+        <Exec Command="&#xA;            cd ./VSharp.ClrInteraction&#xA;            mkdir cmake-build-debug&#xA;            cd cmake-build-debug&#xA;            cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Debug ../&#xA;            cmake --build . --target vsharpConcolic -j 6" />
+    </Target>
+
+    <Target Name="WinBuildConcolic" AfterTargets="BeforeBuild" Condition=" $([MSBuild]::IsOSPlatform('Windows')) ">
+        <Exec Command="&#xA;        cd ./VSharp.ClrInteraction&#xA;        mkdir build&#xA;        msbuild VSharp.ClrInteraction.vcxproj /p:Configuration='Debug' /p:BuildOS='Windows_NT' /p:BuildType='Debug' /p:BuildArch='x64' /p:Platform='x64'" />
+    </Target>
+
+    <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('Linux')) ">
+        <Content Include=".\VSharp.ClrInteraction\cmake-build-debug\libvsharpConcolic.so">
+            <Link>libvsharpConcolic.so</Link>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('OSX')) ">
+        <Content Include=".\VSharp.ClrInteraction\cmake-build-debug\libvsharpConcolic.dylib">
+            <Link>libvsharpConcolic.dylib</Link>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('Windows')) ">
+        <Content Include=".\VSharp.ClrInteraction\build\libvsharpConcolic.dll">
+            <Link>libvsharpConcolic.dll</Link>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="FSharp.Core" Version="7.0.0" />
     </ItemGroup>
 
 </Project>

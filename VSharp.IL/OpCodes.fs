@@ -239,7 +239,7 @@ type offset = int<offsets>
 module Offset =
     let from (x : int) : offset = LanguagePrimitives.Int32WithMeasure x
 
-module internal OpCodeOperations =
+module public OpCodeOperations =
 
     let isSingleByteOpCodeValue (opCode : OpCode) = opCode.Size = 1
     let isSingleByteOpCode = (<>) OpCodes.Prefix1.Value
