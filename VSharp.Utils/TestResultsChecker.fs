@@ -34,7 +34,9 @@ type TestResultsChecker(testDir : DirectoryInfo, runnerDir : DirectoryInfo, expe
 
     let runDotCover globalArg runTests =
         let filters = ["-:module=Microsoft.*"; "-:module=FSharp.*"; "-:class=VSharp.*"; "-:module=VSharp.Utils"]
-        let code, _, error = runDotnet <| sprintf "dotcover --dcFilters=\"%s\" %s --dcReportType=DetailedXML %s" (filters |> join ";") runTests globalArg
+        let command = sprintf "dotcover --dcFilters=\"%s\" %s --dcReportType=DetailedXML %s" (filters |> join ";") runTests globalArg
+        let code, _, error = runDotnet command
+        if code <> 0 then Logger.error $"Non zero dotcover return code: {code}"
         code = 0, error
 
     let runnerWithArgs (directory : DirectoryInfo) =

@@ -3,6 +3,7 @@ namespace VSharp.Interpreter.IL
 open System
 open System.Reflection
 open System.Collections.Generic
+open System.Threading
 open System.Threading.Tasks
 open FSharpx.Collections
 
@@ -417,10 +418,10 @@ type public SILI(options : SiliOptions) =
             reportFinished <- wrapOnTest onFinished
             reportError <- wrapOnError onException
             try
-                let initializeAndStartFuzzer () =
+                let initializeAndStartFuzzer cancellationToken () =
                     async {
                         let assemblyName = (Seq.head isolated).Module.Assembly.Location
-                        let fuzzer = FuzzerInteraction(assemblyName, options.outputDirectory.FullName)
+                        let fuzzer = FuzzerInteraction(assemblyName, options.outputDirectory.FullName, cancellationToken)
                         for m in isolated do
                             do! fuzzer.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
                         do! fuzzer.Wait ()
@@ -454,13 +455,20 @@ type public SILI(options : SiliOptions) =
                     if not initialStates.IsEmpty then
                         x.AnswerPobs initialStates
                     Logger.error "SE finished"
-                let fuzzerTask = Task.Run(initializeAndStartFuzzer)
+                let fuzzerTask =
+                    let tokSource =
+                        if hasTimeout then
+                            new CancellationTokenSource(int(timeout * 1.5))
+                        else new CancellationTokenSource()
+                    let tok = tokSource.Token
+                    Task.Run(initializeAndStartFuzzer tok, tok)
                 let explorationTask = Task.Run(initializeAndStart)
                 let tasks = [|explorationTask; fuzzerTask|]
                 let finished =
                     if hasTimeout then Task.WaitAll(tasks, int(timeout * 1.5))
                     else Task.WaitAll(tasks); true
                 if not finished then Logger.warning "Execution was cancelled due to timeout"
+                Logger.error "1"
             with
             | :? AggregateException as e ->
                 Logger.warning "Execution was cancelled"
@@ -468,9 +476,13 @@ type public SILI(options : SiliOptions) =
             | e -> reportCrash e
         finally
             try
+                Logger.error "2"
                 statistics.ExplorationFinished()
+                Logger.error "3"
                 API.Restore()
+                Logger.error "4"
                 searcher.Reset()
+                Logger.error "5"
             with e -> reportCrash e
 
     member x.Stop() = isStopped <- true

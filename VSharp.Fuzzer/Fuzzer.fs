@@ -18,7 +18,6 @@ type FuzzingResult =
     | Thrown of (obj * Type) array * exn
     | Returned of (obj * Type) array * obj
 
-// TODO: refactor module: 'Fuzzer' class has method parameter
 type Fuzzer ()  =
 
     let mutable method = Unchecked.defaultof<IMethod>

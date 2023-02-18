@@ -3,6 +3,7 @@ namespace VSharp
 open System
 open System.IO
 open System.Reflection
+open System.Xml
 open System.Xml.Serialization
 open VSharp
 

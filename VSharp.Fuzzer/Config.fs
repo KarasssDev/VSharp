@@ -7,5 +7,5 @@ type FuzzerConfig = {
 
 let defaultFuzzerConfig = {
     MaxTest = 10
-    Timeout = 5000
+    Timeout = 1000
 }

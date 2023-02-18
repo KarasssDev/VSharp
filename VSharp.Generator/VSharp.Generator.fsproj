@@ -22,9 +22,4 @@
       <ProjectReference Include="..\VSharp.Utils\VSharp.Utils.fsproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <PackageReference Include="FsCheck" Version="2.16.5" />
-      <PackageReference Include="FSharp.Core" Version="7.0.0" />
-    </ItemGroup>
-
 </Project>
