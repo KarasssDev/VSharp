@@ -1,29 +1,14 @@
 #ifndef PROBES_H_
 #define PROBES_H_
 
-#include "cor.h"
+#include "logging.h"
 #include "memory/memory.h"
-#include "communication/protocol.h"
 #include <vector>
 #include <algorithm>
-
-#define COND INT_PTR
-#define ADDRESS_SIZE sizeof(INT32) + sizeof(UINT_PTR) + sizeof(UINT_PTR) + sizeof(BYTE) + sizeof(BYTE) * 2;
-#define BOXED_OBJ_METADATA_SIZE sizeof(INT_PTR)
-
-// TODO: remove these in the future, they're from storage.cpp
-#define ArrayLengthOffset sizeof(UINT_PTR)
-#define ArrayLengthSize sizeof(INT64)
 
 namespace vsharp {
 
 /// ------------------------------ Commands ---------------------------
-
-// TODO: sometimes ReJit may not be lazy, so need to start it in probes, so here must be ref to Instrumenter
-Protocol *protocol = nullptr;
-void setProtocol(Protocol *p) {
-    protocol = p;
-}
 
 bool areProbesEnabled = false;
 
@@ -44,35 +29,28 @@ void trackCoverage(OFFSET offset, bool &stillExpectsCoverage) {
 
 /// ------------------------------ Probes declarations ---------------------------
 
-std::vector<unsigned long long> ProbesAddresses;
-
-int registerProbe(unsigned long long probe) {
-    ProbesAddresses.push_back(probe);
-    return 0;
-}
-
-#define PROBE(RETTYPE, NAME, ARGS) \
-    RETTYPE STDMETHODCALLTYPE NAME ARGS;\
-    int NAME##_tmp = registerProbe((unsigned long long)&(NAME));\
-    RETTYPE STDMETHODCALLTYPE NAME ARGS
-
-PROBE(void, Track_Coverage, (OFFSET offset)) {
+void Track_Coverage(OFFSET offset) {
+    tout << "Track_Coverage" << std::endl;
     if (!areProbesEnabled) return;
     bool commandsDisabled;
     trackCoverage(offset, commandsDisabled);
 }
 
-inline void branch(OFFSET offset) {
+INT_PTR Track_Coverage_Addr = (INT_PTR) &Track_Coverage;
+mdSignature Track_Coverage_Sig = 0;
+
+void Branch(OFFSET offset) {
     if (!areProbesEnabled) return;
     bool commandsDisabled;
     trackCoverage(offset, commandsDisabled);
 }
-// TODO: make it bool, change instrumentation
-PROBE(void, BrTrue, (OFFSET offset)) { branch(offset); }
-PROBE(void, BrFalse, (OFFSET offset)) { branch(offset); }
-PROBE(void, Switch, (OFFSET offset)) { branch(offset); }
 
-PROBE(void, Track_Enter, (mdMethodDef token, unsigned moduleToken, unsigned maxStackSize, unsigned argsCount, unsigned localsCount, INT8 isSpontaneous)) {
+INT_PTR Branch_Addr = (INT_PTR) &Branch;
+mdSignature Branch_Addr_Sig = 0;
+
+// TODO: add Call probe
+
+void Track_Enter(mdMethodDef token, unsigned moduleToken, INT8 isSpontaneous) {
     LOG(tout << "Track_Enter, token = " << HEX(token) << std::endl);
     if (!areProbesEnabled) {
         LOG(tout << "probes are disalbed; skipped");
@@ -90,40 +68,42 @@ PROBE(void, Track_Enter, (mdMethodDef token, unsigned moduleToken, unsigned maxS
     } else {
         LOG(tout << "Spontaneous enter! Details: expected token "
                  << HEX(expected) << ", but entered " << HEX(token) << std::endl);
-        auto args = new bool[argsCount];
-        memset(args, true, argsCount);
-        stack.pushFrame(token, token, args, argsCount, false);
+        stack.pushFrame(token, token);
         top = &stack.topFrame();
         top->setSpontaneous(true);
-        delete[] args;
     }
     top->setEnteredMarker(true);
-    top->configure(maxStackSize, localsCount);
     top->setModuleToken(moduleToken);
 }
 
-PROBE(void, Track_EnterMain, (mdMethodDef token, unsigned moduleToken, UINT16 argsCount, bool argsConcreteness, unsigned maxStackSize, unsigned localsCount)) {
+INT_PTR Track_Enter_Addr = (INT_PTR) &Track_Enter;
+mdSignature Track_Enter_Sig = 0;
+
+void Track_EnterMain(mdMethodDef token, unsigned moduleToken) {
     enableProbes();
     tout << "entered main" << std::endl;
     Stack &stack = vsharp::stack();
     assert(stack.isEmpty());
-    auto args = new bool[argsCount];
-    memset(args, argsConcreteness, argsCount);
-    stack.pushFrame(token, token, args, argsCount, false);
-    Track_Enter(token, moduleToken, maxStackSize, argsCount, localsCount, 0);
-    stack.resetPopsTracking();
+    stack.pushFrame(token, token);
+    Track_Enter(token, moduleToken, 0);
     enterMain();
 }
 
-PROBE(void, Track_Leave, (UINT8 returnValues, OFFSET offset)) {
+INT_PTR Track_EnterMain_Addr = (INT_PTR) &Track_EnterMain;
+mdSignature Track_EnterMain_Sig = 0;
+
+void Track_Leave(OFFSET offset) {
     if (!areProbesEnabled) return;
     Stack &stack = vsharp::stack();
     StackFrame &top = stack.topFrame();
     stack.popFrame();
-    LOG(tout << "Managed leave to frame " << stack.framesCount() << ". After popping top frame stack balance is " << top.count() << std::endl);
+    LOG(tout << "Managed leave to frame " << stack.framesCount() << std::endl);
 }
 
-void leaveMain(OFFSET offset, UINT8 opsCount, INT_PTR ptr=UNKNOWN_ADDRESS) {
+INT_PTR Track_Leave_Addr = (INT_PTR) &Track_Leave;
+mdSignature Track_Leave_Sig = 0;
+
+void Track_LeaveMain(OFFSET offset) {
     disableProbes();
     Stack &stack = vsharp::stack();
     StackFrame &top = stack.topFrame();
@@ -131,15 +111,11 @@ void leaveMain(OFFSET offset, UINT8 opsCount, INT_PTR ptr=UNKNOWN_ADDRESS) {
     // NOTE: main left, further exploration is not needed, so only getting commands
     mainLeft();
 }
-PROBE(void, Track_LeaveMain_0, (OFFSET offset)) { leaveMain(offset, 0); }
-PROBE(void, Track_LeaveMain_4, (INT32 returnValue, OFFSET offset)) { leaveMain(offset, 1); }
-PROBE(void, Track_LeaveMain_8, (INT64 returnValue, OFFSET offset)) { leaveMain(offset, 1); }
-PROBE(void, Track_LeaveMain_f4, (FLOAT returnValue, OFFSET offset)) { leaveMain(offset, 1); }
-PROBE(void, Track_LeaveMain_f8, (DOUBLE returnValue, OFFSET offset)) { leaveMain(offset, 1); }
 
-PROBE(void, Track_LeaveMain_p, (INT_PTR returnValue, OFFSET offset)) { leaveMain(offset, 1); }
+INT_PTR Track_LeaveMain_Addr = (INT_PTR) &Track_LeaveMain;
+mdSignature Track_LeaveMain_Sig = 0;
 
-PROBE(void, Finalize_Call, (UINT8 returnValues)) {
+void Finalize_Call(OFFSET offset) {
     if (!areProbesEnabled) return;
     Stack &stack = vsharp::stack();
     if (!stack.topFrame().hasEntered()) {
@@ -148,6 +124,9 @@ PROBE(void, Finalize_Call, (UINT8 returnValues)) {
         LOG(tout << "Extern left! " << stack.framesCount() << " frames remained" << std::endl);
     }
 }
+
+INT_PTR Finalize_Call_Addr = (INT_PTR) &Finalize_Call;
+mdSignature Finalize_Call_Sig = 0;
 
 }
 

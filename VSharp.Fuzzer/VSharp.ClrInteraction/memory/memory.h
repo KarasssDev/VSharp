@@ -2,14 +2,14 @@
 #define MEMORY_H_
 
 #include "cor.h"
+
 #include "stack.h"
-#include <functional>
+
 #include <map>
 #include <set>
 #include <vector>
 #include <unordered_set>
-#include "corprof.h"
-#include "corhdr.h"
+#include <functional>
 
 #define staticSizeOfCoverageNode (2 * sizeof(int) + sizeof(mdMethodDef) + sizeof(OFFSET))
 #define READ_BYTES(src, type) *(type*)(src); (src) += sizeof(type)
@@ -41,8 +41,6 @@ void getLock();
 void freeLock();
 
 unsigned allocateString(const char *s);
-
-void validateStackEmptyness();
 
 // Coverage collection
 
