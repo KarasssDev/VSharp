@@ -3,10 +3,13 @@
 
 #include "cor.h"
 #include "stack.h"
-#include "storage.h"
 #include <functional>
 #include <map>
 #include <set>
+#include <vector>
+#include <unordered_set>
+#include "corprof.h"
+#include "corhdr.h"
 
 #define staticSizeOfCoverageNode (2 * sizeof(int) + sizeof(mdMethodDef) + sizeof(OFFSET))
 #define READ_BYTES(src, type) *(type*)(src); (src) += sizeof(type)
@@ -18,10 +21,6 @@ namespace vsharp {
 
 extern std::function<ThreadID()> currentThread;
 static std::map<ThreadID, Stack *> stacks;
-extern Storage heap;
-#ifdef _DEBUG
-extern std::map<unsigned, const char*> stringsPool;
-#endif
 
 // Memory tracking
 
@@ -44,21 +43,6 @@ void freeLock();
 unsigned allocateString(const char *s);
 
 void validateStackEmptyness();
-
-void resolve(INT_PTR p, VirtualAddress &vAddress);
-
-// Exceptions handling
-
-void catchException();
-void terminateByException();
-
-enum ExceptionKind {
-    Unhandled = 1,
-    Caught = 2,
-    NoException = 3
-};
-
-std::tuple<ExceptionKind, OBJID, bool> exceptionRegister();
 
 // Coverage collection
 

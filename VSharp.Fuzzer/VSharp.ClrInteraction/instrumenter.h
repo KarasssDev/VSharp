@@ -2,8 +2,8 @@
 #define INSTRUMENTER_H_
 
 #include <set>
+#include <map>
 #include "corProfiler.h"
-#include "communication/protocol.h"
 #include "cComPtr.h"
 
 struct COR_ILMETHOD_SECT_EH;
@@ -81,14 +81,6 @@ public:
 
     const char *signatureTokens() const { return m_signatureTokens; }
     unsigned signatureTokensLength() const { return m_signatureTokensLength; }
-
-    void configureEntryPoint();
-    mdToken FieldRefTypeToken(mdToken fieldRef);
-    mdToken FieldDefTypeToken(mdToken fieldDef);
-    mdToken ArgTypeToken(mdToken method, INT32 argIndex);
-    mdToken LocalTypeToken(INT32 localIndex);
-    mdToken ReturnTypeToken();
-    mdToken DeclaringTypeToken(mdToken method);
 
     HRESULT instrument(FunctionID functionId, bool reJIT);
     HRESULT reInstrument(FunctionID functionId);

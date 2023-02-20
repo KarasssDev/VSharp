@@ -1,5 +1,6 @@
 #include "memory.h"
 #include "stack.h"
+#include "logging.h"
 #include <mutex>
 
 using namespace vsharp;
@@ -10,12 +11,6 @@ ThreadID currentThreadNotConfigured() {
 
 std::function<ThreadID()> vsharp::currentThread(&currentThreadNotConfigured);
 
-Storage vsharp::heap = Storage();
-
-#ifdef _DEBUG
-std::map<unsigned, const char*> vsharp::stringsPool;
-int topStringIndex = 0;
-#endif
 
 ThreadID lastThreadID = 0;
 Stack *currentStack = nullptr;
@@ -25,7 +20,7 @@ inline void switchContext() {
     if (tid != lastThreadID) {
         lastThreadID = tid;
         Stack *&s = stacks[tid];
-        if (!s) s = new Stack(heap);
+        if (!s) s = new Stack();
         currentStack = s;
     }
 }
@@ -39,32 +34,6 @@ StackFrame &vsharp::topFrame() {
     switchContext();
     return currentStack->topFrame();
 }
-
-void vsharp::validateStackEmptyness() {
-#ifdef _DEBUG
-    for (auto &kv : stacks) {
-        if (!kv.second->isEmpty()) {
-            FAIL_LOUD("Stack is not empty after program termination!");
-        }
-        if (!kv.second->opmemIsEmpty()) {
-            FAIL_LOUD("Opmem is not empty after program termination!");
-        }
-    }
-#endif
-}
-
-#ifdef _DEBUG
-unsigned vsharp::allocateString(const char *s) {
-    unsigned currentIndex = topStringIndex;
-    // Place s into intern pool
-    stringsPool[currentIndex] = s;
-//    LOG(tout << "Allocated string '" << s << "' with index '" << currentIndex << "'");
-    // Increment top index
-    topStringIndex++;
-    // Return string's index
-    return currentIndex;
-}
-#endif
 
 bool _mainLeft = false;
 
@@ -113,27 +82,6 @@ void vsharp::getLock() {
 
 void vsharp::freeLock() {
     mutex.unlock();
-}
-
-void vsharp::resolve(INT_PTR p, VirtualAddress &address) {
-    heap.physToVirtAddress(p, address);
-}
-
-OBJID _exceptionRegister = 0;
-ExceptionKind _exceptionKind = NoException;
-bool _exceptionConcreteness = true;
-bool _isTerminatedByException = false;
-
-void vsharp::catchException() {
-    _exceptionKind = Caught;
-}
-
-void vsharp::terminateByException() {
-    _isTerminatedByException = true;
-}
-
-std::tuple<ExceptionKind, OBJID, bool> vsharp::exceptionRegister() {
-    return std::make_tuple(_exceptionKind, _exceptionRegister, _exceptionConcreteness);
 }
 
 void vsharp::setExpectedCoverage(const CoverageNode *expectedCoverage) {

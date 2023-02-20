@@ -2,18 +2,8 @@
 #define CORPROFILER_H_
 
 #include <atomic>
-#include "memory/storage.h"
 #include "cor.h"
 #include "corprof.h"
-#include "communication/protocol.h"
-
-extern "C" IMAGEHANDLER_API unsigned AddString(char *string);
-extern "C" IMAGEHANDLER_API mdToken FieldRefTypeToken(mdToken fieldRef);
-extern "C" IMAGEHANDLER_API mdToken FieldDefTypeToken(mdToken fieldDef);
-extern "C" IMAGEHANDLER_API mdToken ArgTypeToken(mdToken method, INT32 argIndex);
-extern "C" IMAGEHANDLER_API mdToken LocalTypeToken(INT32 localIndex);
-extern "C" IMAGEHANDLER_API mdToken ReturnTypeToken();
-extern "C" IMAGEHANDLER_API mdToken DeclaringTypeToken(mdToken method);
 
 namespace vsharp {
 
@@ -27,9 +17,6 @@ private:
     ICorProfilerInfo8 *corProfilerInfo;
     Instrumenter *instrumenter;
     Protocol *protocol;
-
-    void resolveType(ClassID classId, std::vector<bool> &isValid, std::vector<bool> &isArray, std::vector<std::pair<CorElementType, int>> &arrayTypes, std::vector<mdTypeDef> &tokens, std::vector<int> &typeArgsCount, std::vector<WCHAR> &moduleNames, std::vector<int> &moduleSizes, std::vector<WCHAR> &assemblyNames, std::vector<int> &assemblySizes);
-    void serializeType(const std::vector<bool> &isValid, const std::vector<bool> &isArray, const std::vector<std::pair<CorElementType, int>> &arrayTypes, const std::vector<mdTypeDef> &tokens, const std::vector<int> &typeArgsCount, const std::vector<WCHAR> &moduleNames, const std::vector<int> &moduleSizes, char *&type, unsigned long &typeLength, const std::vector<WCHAR>& assemblyNames, const std::vector<int>& assemblySizes);
 
 public:
     CorProfiler();

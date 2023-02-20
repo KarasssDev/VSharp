@@ -38,11 +38,10 @@ set(sources
     dllmain.cpp
     logging.cpp
     reflection.cpp
+#    ILRewriter.cpp
     instrumenter.cpp
-    communication/protocol.cpp
-        memory/memory.cpp
+    memory/memory.cpp
     memory/stack.cpp
-    memory/storage.cpp
     ${CORECLR_PATH}/pal/prebuilt/idl/corprof_i.cpp)
 
 add_library(vsharpConcolic SHARED ${sources})

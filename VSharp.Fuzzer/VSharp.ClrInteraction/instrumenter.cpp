@@ -3,7 +3,6 @@
 #include "cComPtr.h"
 #include "reflection.h"
 #include <vector>
-#include <stdexcept>
 #include <corhlpr.cpp>
 #include "memory/memory.h"
 
@@ -23,43 +22,6 @@ using namespace vsharp;
 #define ELEMENT_TYPE_OFFSET ELEMENT_TYPE_I4
 #define ELEMENT_TYPE_SIZE ELEMENT_TYPE_U
 
-struct MethodBodyInfo {
-    unsigned token;
-    unsigned codeLength;
-    unsigned assemblyNameLength;
-    unsigned moduleNameLength;
-    unsigned maxStackSize;
-    unsigned ehsLength;
-    unsigned signatureTokensLength;
-    char *signatureTokens;
-    const WCHAR *assemblyName;
-    const WCHAR *moduleName;
-    const char *bytecode;
-    const char *ehs;
-
-    void serialize(char *&bytes, unsigned &count) const {
-        count = codeLength + 6 * sizeof(unsigned) + ehsLength + assemblyNameLength + moduleNameLength + signatureTokensLength;
-        bytes = new char[count];
-        char *buffer = bytes;
-        unsigned size = sizeof(unsigned);
-        *(unsigned *)buffer = token; buffer += size;
-        *(unsigned *)buffer = codeLength; buffer += size;
-        *(unsigned *)buffer = assemblyNameLength; buffer += size;
-        *(unsigned *)buffer = moduleNameLength; buffer += size;
-        *(unsigned *)buffer = maxStackSize; buffer += size;
-        *(unsigned *)buffer = signatureTokensLength;
-        buffer += size; size = signatureTokensLength;
-        memcpy(buffer, signatureTokens, size);
-        buffer += size; size = assemblyNameLength;
-        memcpy(buffer, (char*)assemblyName, size);
-        buffer += size; size = moduleNameLength;
-        memcpy(buffer, (char*)moduleName, size);
-        buffer += size; size = codeLength;
-        memcpy(buffer, bytecode, size);
-        buffer += size; size = ehsLength;
-        memcpy(buffer, ehs, size);
-    }
-};
 
 HRESULT initTokens(const CComPtr<IMetaDataEmit> &metadataEmit, std::vector<mdSignature> &tokens) {
     HRESULT hr;
@@ -236,19 +198,6 @@ LPBYTE Instrumenter::allocateILMemory(unsigned size)
     return (LPBYTE)m_methodMalloc->Alloc(size);
 }
 
-void Instrumenter::configureEntryPoint() {
-    char *bytes; int messageLength;
-    m_protocol.acceptEntryPoint(bytes, messageLength);
-    char *start = bytes;
-    m_mainModuleSize = *(INT32*) bytes; bytes += sizeof(INT32);
-    m_mainMethod = *(INT32*) bytes; bytes += sizeof(INT32);
-    m_mainModuleName = new WCHAR[m_mainModuleSize];
-    unsigned bytesCount = m_mainModuleSize * sizeof(WCHAR);
-    memcpy(m_mainModuleName, bytes, m_mainModuleSize * sizeof(WCHAR)); bytes += bytesCount;
-    assert(bytes - start == messageLength);
-    delete[] start;
-}
-
 bool Instrumenter::currentMethodIsMain(const WCHAR *moduleName, int moduleSize, mdMethodDef method) const {
     // NOTE: decrementing 'moduleSize', because of null terminator
     if (m_mainModuleSize != moduleSize - 1 || m_mainMethod != method)
@@ -382,54 +331,6 @@ HRESULT Instrumenter::startReJitSkipped() {
     return hr;
 }
 
-mdToken Instrumenter::FieldRefTypeToken(mdToken fieldRef) {
-    auto *reflection = new Reflection(m_profilerInfo);
-    reflection->configure(m_moduleId, m_jittedToken);
-    mdToken typeSpec = reflection->getTypeTokenFromFieldRef(fieldRef);
-    delete reflection;
-    return typeSpec;
-}
-
-mdToken Instrumenter::FieldDefTypeToken(mdToken fieldDef) {
-    auto *reflection = new Reflection(m_profilerInfo);
-    reflection->configure(m_moduleId, m_jittedToken);
-    mdToken typeSpec = reflection->getTypeTokenFromFieldDef(fieldDef);
-    delete reflection;
-    return typeSpec;
-}
-
-mdToken Instrumenter::ArgTypeToken(mdToken method, INT32 argIndex) {
-    auto *reflection = new Reflection(m_profilerInfo);
-    reflection->configure(m_moduleId, m_jittedToken);
-    mdToken typeSpec = reflection->getTypeTokenFromParameter(method, argIndex);
-    delete reflection;
-    return typeSpec;
-}
-
-mdToken Instrumenter::LocalTypeToken(INT32 localIndex) {
-    auto *reflection = new Reflection(m_profilerInfo);
-    reflection->configure(m_moduleId, m_jittedToken);
-    mdToken typeSpec = reflection->getTypeTokenFromLocal(m_tkLocalVarSig, localIndex);
-    delete reflection;
-    return typeSpec;
-}
-
-mdToken Instrumenter::ReturnTypeToken() {
-    auto *reflection = new Reflection(m_profilerInfo);
-    reflection->configure(m_moduleId, m_jittedToken);
-    mdToken typeToken = reflection->getTypeTokenOfReturnType(m_jittedToken);
-    delete reflection;
-    return typeToken;
-}
-
-mdToken Instrumenter::DeclaringTypeToken(mdToken method) {
-    auto *reflection = new Reflection(m_profilerInfo);
-    reflection->configure(m_moduleId, m_jittedToken);
-    mdToken typeToken = reflection->getTypeTokenOfDeclaringType(method);
-    delete reflection;
-    return typeToken;
-}
-
 HRESULT Instrumenter::doInstrumentation(ModuleID oldModuleId, const WCHAR *assemblyName, ULONG assemblyNameLength, const WCHAR *moduleName, ULONG moduleNameLength) {
     HRESULT hr;
     CComPtr<IMetaDataImport> metadataImport;
@@ -480,19 +381,10 @@ HRESULT Instrumenter::doInstrumentation(ModuleID oldModuleId, const WCHAR *assem
 
     ModuleID moduleId = m_moduleId;
     mdMethodDef jittedToken = m_jittedToken;
-    if (!instrumentingEnabled() || !m_protocol.isInstrumenterAvailable()) {
+    if (!instrumentingEnabled()) {
         tout << "skipping jitted method: " << moduleName << " : " << m_jittedToken << std::endl;
         return S_OK;
     }
-    disableInstrumentation();
-    tout << "calling instrumenter" << std::endl;
-    m_protocol.instrumentR((unsigned)m_jittedToken, (unsigned)codeSize(), (unsigned)(assemblyNameLength - 1) * sizeof(WCHAR),
-                          (unsigned)(moduleNameLength - 1) * sizeof(WCHAR),(unsigned)maxStackSize(),(unsigned)ehCount(),
-                          m_signatureTokensLength,m_signatureTokens,assemblyName,moduleName,code(),(char*)ehs(),
-                          // result
-                          &bytecodeR, &lengthR, &maxStackSizeR, &ehsR, &ehsLengthR);
-    tout << "call finished" << std::endl;
-    enableInstrumentation();
     m_moduleId = moduleId;
     m_jittedToken = jittedToken;
 
@@ -514,11 +406,6 @@ HRESULT Instrumenter::doInstrumentation(ModuleID oldModuleId, const WCHAR *assem
 }
 
 HRESULT Instrumenter::instrument(FunctionID functionId, bool reJIT) {
-    if (!m_protocol.isInstrumenterAvailable()) {
-        LOG(tout << "Instrumentation of token " << HEX(m_jittedToken) << " is skipped, no instrumenter added"
-                 << std::endl);
-        return S_OK;
-    }
     HRESULT hr = S_OK;
     ModuleID newModuleId;
     ClassID classId;
@@ -558,31 +445,12 @@ HRESULT Instrumenter::instrument(FunctionID functionId, bool reJIT) {
         }
     }
 
-    if (true) {
-        // TODO: analyze the IL code instead to understand that we've injected functions?
-//        if (instrumentedFunctions.find({newModuleId, m_jittedToken}) != instrumentedFunctions.end()) {
-//            LOG(tout << "Duplicate jitting of " << HEX(m_jittedToken) << std::endl);
-//            return S_OK;
-//        }
-//        if (!skippedBeforeMain.empty())
-//            IfFailRet(startReJitSkipped());
-        if (isMainLeft()) {
-            tout << "keeeeek!!!!!!" << std::endl;
-            //freeLock();
-            // NOTE: main left, further instrumentation is not needed, so doing nothing
-            while (true) { }
-//            if (!m_reJitInstrumentedStarted)
-//                IfFailRet(startReJitInstrumented());
-//            LOG(tout << "Main left! Skipping instrumentation of " << HEX(m_jittedToken) << std::endl);
-            return S_OK;
-        }
+    if (shouldInstrument) {
         ModuleID oldModuleId = m_moduleId;
         m_moduleId = newModuleId;
         hr = doInstrumentation(oldModuleId, assemblyName, assemblyNameLength, moduleName, moduleNameLength);
     } else {
         LOG(tout << "Instrumentation of token " << HEX(m_jittedToken) << " is skipped" << std::endl);
-        tout << "instrumenting disabled; no rejit" << std::endl;
-        // skippedBeforeMain.insert({newModuleId, m_jittedToken});
     }
 
     delete[] moduleName;

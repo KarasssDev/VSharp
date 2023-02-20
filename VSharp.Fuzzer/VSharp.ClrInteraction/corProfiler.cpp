@@ -8,34 +8,9 @@
 #endif
 #include "logging.h"
 #include "instrumenter.h"
-#include "communication/protocol.h"
 #include "memory/memory.h"
 
 #define UNUSED(x) (void)x
-
-vsharp::Instrumenter* instr = nullptr;
-
-unsigned AddString(char *string) {
-    return vsharp::allocateString(string);
-}
-mdToken FieldRefTypeToken(mdToken fieldRef) {
-    return instr->FieldRefTypeToken(fieldRef);
-}
-mdToken FieldDefTypeToken(mdToken fieldDef) {
-    return instr->FieldDefTypeToken(fieldDef);
-}
-mdToken ArgTypeToken(mdToken method, INT32 argIndex) {
-    return instr->ArgTypeToken(method, argIndex);
-}
-mdToken LocalTypeToken(INT32 localIndex) {
-    return instr->LocalTypeToken(localIndex);
-}
-mdToken ReturnTypeToken() {
-    return instr->ReturnTypeToken();
-}
-mdToken DeclaringTypeToken(mdToken method) {
-    return instr->DeclaringTypeToken(method);
-}
 
 using namespace vsharp;
 
@@ -72,9 +47,9 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Initialize(IUnknown *pICorProfilerInfoUnk
         COR_PRF_MONITOR_CLR_EXCEPTIONS |
         COR_PRF_DISABLE_TRANSPARENCY_CHECKS_UNDER_FULL_TRUST | /* helps the case where this profiler is used on Full CLR */
         COR_PRF_DISABLE_INLINING |
-        COR_PRF_MONITOR_GC |
-        COR_PRF_ENABLE_OBJECT_ALLOCATED |
-        COR_PRF_MONITOR_OBJECT_ALLOCATED |
+//        COR_PRF_MONITOR_GC |
+//        COR_PRF_ENABLE_OBJECT_ALLOCATED |
+//        COR_PRF_MONITOR_OBJECT_ALLOCATED |
         COR_PRF_ENABLE_REJIT;
 
     // TODO: place IfFailRet here, log fails!
@@ -94,11 +69,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Initialize(IUnknown *pICorProfilerInfoUnk
     };
     currentThread = currentThreadGetter;
 
-    protocol = new vsharp::Protocol();
-
     instrumenter = new Instrumenter(*corProfilerInfo, *protocol);
-
-    instr = instrumenter;
 
     return S_OK;
 }
@@ -421,181 +392,11 @@ HRESULT STDMETHODCALLTYPE CorProfiler::RuntimeThreadResumed(ThreadID threadId)
 
 HRESULT STDMETHODCALLTYPE CorProfiler::MovedReferences(ULONG cMovedObjectIDRanges, ObjectID oldObjectIDRangeStart[], ObjectID newObjectIDRangeStart[], ULONG cObjectIDRangeLength[])
 {
-    for (int i = 0; i < cMovedObjectIDRanges; ++i) {
-        heap.moveAndMark(oldObjectIDRangeStart[i], newObjectIDRangeStart[i], cObjectIDRangeLength[i]);
-    }
     return S_OK;
-}
-bool corElementTypeIsPrimitive(CorElementType corElementType) {
-    switch (corElementType) {
-        case ELEMENT_TYPE_BOOLEAN:
-        case ELEMENT_TYPE_CHAR:
-        case ELEMENT_TYPE_I1:
-        case ELEMENT_TYPE_U1:
-        case ELEMENT_TYPE_I2:
-        case ELEMENT_TYPE_U2:
-        case ELEMENT_TYPE_I4:
-        case ELEMENT_TYPE_U4:
-        case ELEMENT_TYPE_I8:
-        case ELEMENT_TYPE_U8:
-        case ELEMENT_TYPE_R4:
-        case ELEMENT_TYPE_R8:
-        case ELEMENT_TYPE_I:
-        case ELEMENT_TYPE_U:
-            return true;
-        default:
-            return false;
-    }
-}
-
-// TODO: use tree of type and store it in the heap
-void CorProfiler::resolveType(ClassID classId, std::vector<bool> &isValid, std::vector<bool> &isArray, std::vector<std::pair<CorElementType, int>> &arrayTypes, std::vector<mdTypeDef> &tokens, std::vector<int> &typeArgsCount, std::vector<WCHAR> &moduleNames, std::vector<int> &moduleSizes, std::vector<WCHAR> &assemblyNames, std::vector<int> &assemblySizes)
-{
-    CorElementType corElementType;
-    ClassID elementType;
-    ULONG rank;
-    HRESULT hr = corProfilerInfo->IsArrayClass(classId, &corElementType, &elementType, &rank);
-    if (hr == S_OK) {
-        isValid.push_back(true);
-        isArray.push_back(true);
-        arrayTypes.emplace_back(corElementType, rank);
-        if (!corElementTypeIsPrimitive(corElementType)) {
-            resolveType(elementType, isValid, isArray, arrayTypes, tokens, typeArgsCount, moduleNames, moduleSizes, assemblyNames, assemblySizes);
-        }
-    } else {
-        ModuleID moduleId;
-        ClassID parent;
-        ULONG32 typeArgsNum;
-        mdTypeDef token;
-        auto *typeArgs = new ClassID[0];
-        hr = this->corProfilerInfo->GetClassIDInfo2(classId, &moduleId, &token, &parent, 0, &typeArgsNum, typeArgs);
-        if (hr == S_OK) {
-            isValid.push_back(true);
-            isArray.push_back(false);
-
-            typeArgs = new ClassID[typeArgsNum];
-            if (FAILED(this->corProfilerInfo->GetClassIDInfo2(classId, &moduleId, &token, &parent, typeArgsNum, &typeArgsNum, typeArgs))) FAIL_LOUD("getting generic type info failed!");
-            tokens.push_back(token);
-            typeArgsCount.push_back((int) typeArgsNum);
-
-            LPCBYTE pBaseLoadAddress;
-            ULONG moduleSize;
-            auto moduleName = new WCHAR[0];
-            AssemblyID assemblyId;
-            if (FAILED(this->corProfilerInfo->GetModuleInfo(moduleId, &pBaseLoadAddress, 0, &moduleSize, moduleName, &assemblyId))) FAIL_LOUD("getting module info failed");
-            moduleName = new WCHAR[moduleSize];
-            if (FAILED(this->corProfilerInfo->GetModuleInfo(moduleId, &pBaseLoadAddress, moduleSize, &moduleSize, moduleName, &assemblyId))) FAIL_LOUD("getting module info failed");
-            moduleSizes.push_back((int) moduleSize * (int) sizeof(WCHAR));
-            for (int i = 0; i < moduleSize; ++i) {
-                moduleNames.push_back(moduleName[i]);
-            }
-            delete[] moduleName;
-            ULONG assemblySize;
-            auto assemblyName = new WCHAR[0];
-            AppDomainID appDomainId;
-            ModuleID assemblyModuleId;
-            if (FAILED(this->corProfilerInfo->GetAssemblyInfo(assemblyId, 0, &assemblySize, assemblyName, &appDomainId, &assemblyModuleId))) FAIL_LOUD("getting assembly info failed");
-            assemblyName = new WCHAR[assemblySize];
-            if (FAILED(this->corProfilerInfo->GetAssemblyInfo(assemblyId, assemblySize, &assemblySize, assemblyName, &appDomainId, &assemblyModuleId))) FAIL_LOUD("getting assembly info failed");
-            assemblySizes.push_back((int) assemblySize * (int) sizeof(WCHAR));
-            for (int i = 0; i < assemblySize; ++i) {
-                assemblyNames.push_back(assemblyName[i]);
-            }
-            delete[] assemblyName;
-
-            for (int i = 0; i < typeArgsNum; ++i)
-                resolveType(typeArgs[i], isValid, isArray, arrayTypes, tokens, typeArgsCount, moduleNames, moduleSizes, assemblyNames, assemblySizes);
-            delete[] typeArgs;
-        } else {
-            isValid.push_back(false);
-        }
-    }
-}
-
-// TODO: need to move serialize to probes?
-void CorProfiler::serializeType(const std::vector<bool> &isValid, const std::vector<bool> &isArray, const std::vector<std::pair<CorElementType, int>> &arrayTypes, const std::vector<mdTypeDef> &tokens, const std::vector<int> &typeArgsCount, const std::vector<WCHAR> &moduleNames, const std::vector<int> &moduleSizes, char *&type, unsigned long &typeLength, const std::vector<WCHAR>& assemblyNames, const std::vector<int>& assemblySizes)
-{
-    auto isValidSize = (INT32)isValid.size();
-    auto isArraySize = (INT32)isArray.size();
-    auto arrayTypesSize = (INT32)arrayTypes.size();
-    auto tokensSize = (INT32)tokens.size();
-    auto typeArgsCountSize = (INT32)typeArgsCount.size();
-    auto moduleNamesSize = (INT32)moduleNames.size();
-    auto moduleSizesSize = (INT32)moduleSizes.size();
-    auto assemblyNamesSize = (INT32)assemblyNames.size();
-    auto assemblySizesSize = (INT32)assemblySizes.size();
-    assert(tokensSize == typeArgsCountSize && typeArgsCountSize == moduleSizesSize && moduleSizesSize == assemblySizesSize);
-    typeLength = isValidSize * sizeof(BYTE) + isArraySize * sizeof(BYTE) + arrayTypesSize * (sizeof(BYTE) + sizeof(INT32)) + tokensSize * sizeof(INT32) + typeArgsCountSize * sizeof(INT32) + moduleNamesSize * sizeof(WCHAR) + moduleSizesSize * sizeof(INT32) + assemblyNamesSize * sizeof(WCHAR) + assemblySizesSize * sizeof(INT32);
-    type = new char[typeLength];
-    char *begin = type;
-    char *moduleNamesPtr = (char *) moduleNames.data();
-    char *assemblyNamesPtr = (char *) assemblyNames.data();
-    int arrayTypeIndex = 0;
-    int validObjectIndex = 0;
-    int tokenIndex = 0;
-    for (bool valid: isValid) {
-        auto checkValidPtr = (BYTE *)type;
-        *checkValidPtr = (BYTE) (valid ? 1 : 0); type += sizeof(BYTE);
-        if (valid) { // TODO: delete valid option! #do
-            auto arrayCheckPtr = (BYTE *)type;
-            bool arrayCheck = isArray[validObjectIndex];
-            *arrayCheckPtr = (BYTE) arrayCheck; type += sizeof(BYTE);
-            if (arrayCheck) {
-                auto arrayType = arrayTypes[arrayTypeIndex];
-                auto corElemTypePtr = (BYTE *)type;
-                *corElemTypePtr = (BYTE) arrayType.first; type += sizeof(BYTE);
-                auto rankPtr = (INT32 *)type;
-                *rankPtr = arrayType.second; type += sizeof(INT32);
-                arrayTypeIndex++;
-            } else {
-                auto tokenPtr = (mdTypeDef *)type;
-                *tokenPtr = tokens[tokenIndex]; type += sizeof(mdTypeDef);
-
-                auto assemblySizePtr = (INT32 *)type;
-                auto assemblySize = assemblySizes[tokenIndex];
-                *assemblySizePtr = assemblySize; type += sizeof(INT32);
-                memcpy(type, assemblyNamesPtr, assemblySize); type += assemblySize; assemblyNamesPtr += assemblySize;
-
-                auto moduleSizePtr = (INT32 *)type;
-                auto moduleSize = moduleSizes[tokenIndex];
-                *moduleSizePtr = moduleSize; type += sizeof(INT32);
-                memcpy(type, moduleNamesPtr, moduleSize); type += moduleSize; moduleNamesPtr += moduleSize;
-
-                auto typeArgsCountPtr = (INT32 *)type;
-                *typeArgsCountPtr = typeArgsCount[tokenIndex]; type += sizeof(INT32);
-                tokenIndex++;
-            }
-            validObjectIndex++;
-        } else {
-            FAIL_LOUD("Type serialization: type was not resolved!");
-        }
-    }
-    assert(tokenIndex == tokensSize && validObjectIndex == isArraySize);
-    type = begin;
 }
 
 HRESULT STDMETHODCALLTYPE CorProfiler::ObjectAllocated(ObjectID objectId, ClassID classId)
 {
-    ULONG size;
-    this->corProfilerInfo->GetObjectSize(objectId, &size);
-
-    // TODO: type caching to reuse already allocated types
-    char *type = new char[0];
-    unsigned long typeLength = 0;
-
-    std::vector<bool> isValid;
-    std::vector<bool> isArray;
-    std::vector<std::pair<CorElementType, int>> arrayTypes;
-    std::vector<mdTypeDef> tokens;
-    std::vector<int> typeArgsCount;
-    std::vector<WCHAR> moduleNames;
-    std::vector<int> nameLengths;
-    std::vector<WCHAR> assemblyNames;
-    std::vector<int> assemblySizes;
-    resolveType(classId, isValid, isArray, arrayTypes, tokens, typeArgsCount, moduleNames, nameLengths, assemblyNames, assemblySizes);
-    serializeType(isValid, isArray, arrayTypes, tokens, typeArgsCount, moduleNames, nameLengths, type, typeLength, assemblyNames, assemblySizes);
-
-    heap.allocateObject(objectId, size, type, typeLength, isArray[0]);
     return S_OK;
 }
 
@@ -625,68 +426,6 @@ HRESULT STDMETHODCALLTYPE CorProfiler::RootReferences(ULONG cRootRefs, ObjectID 
 
 HRESULT STDMETHODCALLTYPE CorProfiler::ExceptionThrown(ObjectID thrownObjectId)
 {
-    // HRESULT hr;
-    // printf("Exception %lX thrown!\n", thrownObjectId);
-    // ULONG size;
-    // ClassID classId;
-    // IfFailRet(corProfilerInfo->GetObjectSize(thrownObjectId, &size));
-    // IfFailRet(corProfilerInfo->GetClassFromObject(thrownObjectId, &classId));
-    // std::cout << "size of exception: " << size << std::endl;
-    // char *p = (char *)thrownObjectId;
-    // for (unsigned i = 0; i < size; ++i) {
-    //     char b = *(p + i);
-    //     printf("%u: %c (%hhX, %hhu)\n", i, b, b, b);
-    // }
-
-    // ULONG fieldsCount = 0;
-    // ULONG bytesCount = 0;
-    // IfFailRet(this->corProfilerInfo->GetClassLayout(classId, new COR_FIELD_OFFSET[0], 0, &fieldsCount, &bytesCount));
-    // mdTypeDef token;
-    // ModuleID moduleId;
-    // IfFailRet(this->corProfilerInfo->GetClassIDInfo(classId, &moduleId, &token));
-
-    // CComPtr<IMetaDataImport> metadataImport;
-    // IfFailRet(this->corProfilerInfo->GetModuleMetaData(moduleId, ofRead | ofWrite, IID_IMetaDataImport, reinterpret_cast<IUnknown **>(&metadataImport)));
-
-    // printf("This is class! Fields count = %u, bytes count = %u\n", fieldsCount, bytesCount);
-    // COR_FIELD_OFFSET *fieldOffsets = new COR_FIELD_OFFSET[fieldsCount];
-    // if (this->corProfilerInfo->GetClassLayout(classId, fieldOffsets, fieldsCount, &fieldsCount, &bytesCount) != S_OK) {
-    //     printf("Unexpected fail while getting class laoyut!!!");
-    //     return S_OK;
-    // }
-    // printf("Offsets:\n");
-    // for (unsigned int i = 0; i < fieldsCount; ++i) {
-    //     printf("offset %u: token = %u, offset = %u\n", i, fieldOffsets[i].ridOfField, fieldOffsets[i].ulOffset);
-    // }
-    // printf("\n");
-
-
-    // char spbuf[8];
-    // for (int i = 0; i < 8; ++i) {
-    //     spbuf[i] = *(p + 120 + i);
-    // }
-    // char *sp = *(char **)(spbuf);
-    // ObjectID sid = (ObjectID) sp;
-    // ClassID sclassId;
-    // printf("string pointer: %lX\n", sid);
-    // unsigned ssize;
-    // IfFailRet(corProfilerInfo->GetObjectSize(sid, &ssize));
-    // IfFailRet(corProfilerInfo->GetClassFromObject(sid, &sclassId));
-    // std::cout << "size of string: " << ssize << std::endl;
-    // fflush(stdout);
-    // ULONG lengthOffset = 0;
-    // ULONG contentsOffset = 0;
-    // IfFailRet(this->corProfilerInfo->GetStringLayout2(&lengthOffset, &contentsOffset));
-    // printf("This is string! Length offset = %u, contents offset = %u\n", lengthOffset, contentsOffset);
-    // int length = *((int *)(sid + lengthOffset));
-    // printf("Length = %d\n", length);
-    // printf("String contents: ");
-    // for (int i = 0; i < 2 * length; ++i) {
-    //     char b = *(sp + contentsOffset + i);
-    //     printf("%u: %c (%hhX, %hhu)\n", i, b, b, b);
-    // }
-    // printf("\n");
-
     LOG(tout << "EXCEPTION THROWN!" << std::endl);
     UNUSED(thrownObjectId);
     return S_OK;
@@ -710,14 +449,6 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ExceptionSearchFilterEnter(FunctionID fun
 {
     LOG(tout << "EXCEPTION Search filter enter" << std::endl);
 
-    if (isMainEntered()) {
-        // TODO: support filter: modify ip, because need to execute lower frames, but do not need to pop them
-        ExceptionKind kind;
-        OBJID exceptionRef;
-        bool isConcrete;
-        std::tie(kind, exceptionRef, isConcrete) = exceptionRegister();
-        FAIL_LOUD("Filter is not supported");
-    }
     UNUSED(functionId);
     return S_OK;
 }
@@ -767,7 +498,6 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ExceptionUnwindFunctionLeave()
         Stack &s = stack();
         if (s.framesCount() == 1) {
             // NOTE: sending command to end SILI execution
-            Protocol::sendTerminateByExceptionCommand();
         }
         // NOTE: popping stack frame
         s.popFrame();
@@ -791,13 +521,6 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ExceptionUnwindFinallyLeave()
 HRESULT STDMETHODCALLTYPE CorProfiler::ExceptionCatcherEnter(FunctionID functionId, ObjectID objectId)
 {
     LOG(tout << "EXCEPTION CATCHER ENTER!" << std::endl);
-    if (isMainEntered()) {
-        ExceptionKind kind;
-        OBJID exceptionRef;
-        bool isConcrete;
-        std::tie(kind, exceptionRef, isConcrete) = exceptionRegister();
-        catchException();
-    }
     UNUSED(functionId);
     UNUSED(objectId);
     return S_OK;
@@ -854,14 +577,11 @@ HRESULT STDMETHODCALLTYPE CorProfiler::GarbageCollectionStarted(int cGenerations
 
 HRESULT STDMETHODCALLTYPE CorProfiler::SurvivingReferences(ULONG cSurvivingObjectIDRanges, ObjectID objectIDRangeStart[], ULONG cObjectIDRangeLength[])
 {
-    for (int i = 0; i < cSurvivingObjectIDRanges; ++i)
-        heap.markSurvivedObjects(objectIDRangeStart[i], cObjectIDRangeLength[i]);
     return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CorProfiler::GarbageCollectionFinished()
 {
-    heap.clearAfterGC();
     return S_OK;
 }
 
@@ -918,9 +638,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ReJITCompilationStarted(FunctionID functi
     UNUSED(functionId);
     UNUSED(rejitId);
     UNUSED(fIsSafeToBlock);
-//    getLock();
     HRESULT hr = instrumenter->reInstrument(functionId);
-//    freeLock();
     return hr;
 }
 
@@ -992,12 +710,11 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleInMemorySymbolsUpdated(ModuleID mod
 HRESULT STDMETHODCALLTYPE CorProfiler::DynamicMethodJITCompilationStarted(FunctionID functionId, BOOL fIsSafeToBlock, LPCBYTE ilHeader, ULONG cbILHeader)
 {
     // TODO: this should be instrumented as well!!
-//    printf("Dynamic Function JIT Compilation Started. %" UINT_PTR_FORMAT "\r\n", (UINT64)functionId);
     ClassID classId;
     ModuleID moduleId;
     mdToken token;
     HRESULT hr = corProfilerInfo->GetFunctionInfo(functionId, &classId, &moduleId, &token);
-//    std::cout << "function info: success= " << SUCCEEDED(hr) << ", classId=" << classId << ", moduleId=" << moduleId << ", token=" << token << std::endl;
+    tout << "function info: success= " << SUCCEEDED(hr) << ", classId=" << classId << ", moduleId=" << moduleId << ", token=" << token << std::endl;
     return S_OK;
 }
 
