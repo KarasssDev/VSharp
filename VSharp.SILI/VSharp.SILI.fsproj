@@ -54,7 +54,6 @@
         <Compile Include="Communication.fs" />
         <Compile Include="Instrumenter.fs" />
         <Compile Include="ClientMachine.fs" />
-        <Compile Include="TestGenerator.fs" />
         <Compile Include="SILI.fs" />
     </ItemGroup>
 
@@ -63,6 +62,7 @@
         <ProjectReference Include="..\VSharp.InternalCalls\VSharp.InternalCalls.fsproj" />
         <ProjectReference Include="..\VSharp.SILI.Core\VSharp.SILI.Core.fsproj" />
         <ProjectReference Include="..\VSharp.Solver\VSharp.Solver.fsproj" />
+        <ProjectReference Include="..\VSharp.TestGenerator\VSharp.TestGenerator.fsproj" />
     </ItemGroup>
 
     <Target Name="CloneDotnetRuntime" BeforeTargets="UnixBuildConcolic;WinBuildConcolic" Condition=" $(BuildConcolic) And !Exists('../runtime') ">

@@ -306,6 +306,8 @@ module API =
 
         val ObjectToTerm : state -> obj -> Type -> term
 
+        val StateResult : state -> term
+
     module Print =
         val Dump : state -> string
         val PrintPC : pathCondition -> string
