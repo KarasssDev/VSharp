@@ -36,9 +36,10 @@ set(sources
     classFactory.cpp
     corProfiler.cpp
     dllmain.cpp
-    instrumenter.cpp
-    ILRewriter.cpp
     logging.cpp
+    reflection.cpp
+#    ILRewriter.cpp
+    instrumenter.cpp
     memory/memory.cpp
     memory/stack.cpp
     ${CORECLR_PATH}/pal/prebuilt/idl/corprof_i.cpp)

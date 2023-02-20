@@ -1,4 +1,5 @@
 #include "corProfiler.h"
+#include "corhlpr.h"
 #ifdef UNIX
 #include "profiler_unix.h"
 #endif
@@ -68,7 +69,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Initialize(IUnknown *pICorProfilerInfoUnk
     };
     currentThread = currentThreadGetter;
 
-    instrumenter = new Instrumenter(*corProfilerInfo);
+    instrumenter = new Instrumenter(*corProfilerInfo, *protocol);
 
     return S_OK;
 }
@@ -78,6 +79,8 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Shutdown()
 #ifdef _LOGGING
     close_log();
 #endif
+
+    validateStackEmptyness();
 
     if (this->corProfilerInfo != nullptr)
     {
@@ -213,13 +216,18 @@ bool jitInProcess = false;
 
 HRESULT STDMETHODCALLTYPE CorProfiler::JITCompilationStarted(FunctionID functionId, BOOL fIsSafeToBlock)
 {
-    getLock();
     LOG(tout << "JITCompilationStarted, threadID = " << currentThread() << " funcId = " << functionId << std::endl);
+//    if (!instrumentingEnabled()) return S_OK;
     UNUSED(fIsSafeToBlock);
-    auto instrument = new Instrumenter(*corProfilerInfo);
+//    LOG(tout << "JITCompilationStarted, threadID = " << currentThread() << std::endl);
+
+//    if (jitInProcess) FAIL_LOUD("Handling JIT event, when previous was not finished!");
+//    jitInProcess = true;
+    auto instrument = new Instrumenter(*corProfilerInfo, *protocol);
     HRESULT hr = instrument->instrument(functionId, false);
-    freeLock();
+//    jitInProcess = false;
     return hr;
+//    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CorProfiler::JITCompilationFinished(FunctionID functionId, HRESULT hrStatus, BOOL fIsSafeToBlock)
