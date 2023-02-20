@@ -10,7 +10,7 @@ open System.Linq;
 module TestGenerator =
 
     let mutable private maxBufferSize = 128
-    let internal setMaxBufferSize size = maxBufferSize <- size
+    let public setMaxBufferSize size = maxBufferSize <- size
 
     let private addMockToMemoryGraph (indices : Dictionary<concreteHeapAddress, int>) (encodeMock : ITypeMock -> obj) (test : UnitTest) addr mock =
         let index = test.MemoryGraph.ReserveRepresentation()
@@ -177,14 +177,14 @@ module TestGenerator =
             freshMock
         Dict.getValueOrUpdate mockCache mock createMock
 
-    let private model2test (test : UnitTest) isError indices mockCache (m : Method) model (cilState : cilState) message =
-        let suitableState cilState =
+    let private model2test (test : UnitTest) isError indices mockCache (m : Method) model (state : state) message =
+        let suitableState state =
             let methodHasByRefParameter (m : Method) = m.Parameters |> Seq.exists (fun pi -> pi.ParameterType.IsByRef)
             match () with
             | _ when m.DeclaringType.IsValueType && not m.IsStatic || methodHasByRefParameter m ->
-                Memory.CallStackSize cilState.state = 2
-            | _ -> Memory.CallStackSize cilState.state = 1
-        if not <| suitableState cilState
+                Memory.CallStackSize state = 2
+            | _ -> Memory.CallStackSize state = 1
+        if not <| suitableState state
             then internalfail "Finished state has many frames on stack! (possibly unhandled exception)"
 
         match model with
@@ -198,49 +198,49 @@ module TestGenerator =
                 let mockedMethodParams = Array.zeroCreate methodParams.Length
                 let processSymbolicType (concreteArr : Type array) (mockArr : Mocking.Type option array) i = function
                     | ConcreteType t -> concreteArr.[i] <- t
-                    | MockType m -> mockArr.[i] <- Some (encodeTypeMock model cilState.state indices mockCache test m)
+                    | MockType m -> mockArr.[i] <- Some (encodeTypeMock model state indices mockCache test m)
                 classParams |> Seq.iteri (processSymbolicType concreteClassParams mockedClassParams)
                 methodParams |> Seq.iteri (processSymbolicType concreteMethodParams mockedMethodParams)
                 test.SetTypeGenericParameters concreteClassParams mockedClassParams
                 test.SetMethodGenericParameters concreteMethodParams mockedMethodParams
 
                 let parametersInfo = m.Parameters
-                if cilState.state.complete then
+                if state.complete then
                     for pi in parametersInfo do
-                        let arg = Memory.ReadArgument cilState.state pi
-                        let concreteArg = term2obj model cilState.state indices mockCache test arg
+                        let arg = Memory.ReadArgument state pi
+                        let concreteArg = term2obj model state indices mockCache test arg
                         test.AddArg (Array.head parametersInfo) concreteArg
                 else
                     for pi in parametersInfo do
                         let value =
                             if pi.ParameterType.IsByRef then
                                 let key = ParameterKey pi
-                                let stackRef = Memory.ReadLocalVariable cilState.state key
+                                let stackRef = Memory.ReadLocalVariable state key
                                 Memory.Read modelState stackRef
                             else
                                 Memory.ReadArgument modelState pi |> model.Complete
-                        let concreteValue : obj = term2obj model cilState.state indices mockCache test value
+                        let concreteValue : obj = term2obj model state indices mockCache test value
                         test.AddArg pi concreteValue
 
                 if m.HasThis then
                     let thisTerm =
                         if m.DeclaringType.IsValueType then
-                            let stackRef = Memory.ReadThis cilState.state m
+                            let stackRef = Memory.ReadThis state m
                             Memory.Read modelState stackRef
                         else
                             Memory.ReadThis modelState m |> model.Complete
-                    let concreteThis = term2obj model cilState.state indices mockCache test thisTerm
+                    let concreteThis = term2obj model state indices mockCache test thisTerm
                     test.ThisArg <- concreteThis
 
                 let hasException, message =
-                    match cilState.state.exceptionsRegister with
+                    match state.exceptionsRegister with
                     | Unhandled(e, _) ->
-                        let t = MostConcreteTypeOfHeapRef cilState.state e
+                        let t = MostConcreteTypeOfHeapRef state e
                         test.Exception <- t
                         let message =
                             if isError && String.IsNullOrEmpty message then
-                                let messageReference = Memory.ReadField cilState.state e Reflection.exceptionMessageField |> model.Eval
-                                term2obj model cilState.state indices mockCache test messageReference :?> string
+                                let messageReference = Memory.ReadField state e Reflection.exceptionMessageField |> model.Eval
+                                term2obj model state indices mockCache test messageReference :?> string
                             else message
                         true, message
                     | _ -> false, message
@@ -248,14 +248,14 @@ module TestGenerator =
                 test.ErrorMessage <- message
 
                 if not isError && not hasException then
-                    let retVal = model.Eval cilState.Result
-                    test.Expected <- term2obj model cilState.state indices mockCache test retVal
+                    let retVal = Memory.StateResult state |> model.Eval
+                    test.Expected <- term2obj model state indices mockCache test retVal
                 Some test
         | _ -> __unreachable__()
 
-    let internal state2test isError (m : Method) (cilState : cilState) message =
+    let public state2test isError (m : Method) (state : state) message =
         let indices = Dictionary<concreteHeapAddress, int>()
         let mockCache = Dictionary<ITypeMock, Mocking.Type>()
         let test = UnitTest((m :> IMethod).MethodBase)
 
-        model2test test isError indices mockCache m cilState.state.model cilState message
+        model2test test isError indices mockCache m state.model state message

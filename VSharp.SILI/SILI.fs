@@ -108,23 +108,24 @@ type public SILI(options : SiliOptions) =
     let reportState reporter isError cilState message =
         try
             searcher.Remove cilState
+            let state = cilState.state
             if cilState.history |> Seq.exists (not << statistics.IsBasicBlockCoveredByTest)
             then
                 let hasException =
-                    match cilState.state.exceptionsRegister with
+                    match state.exceptionsRegister with
                     | Unhandled _ -> true
                     | _ -> false
-                let callStackSize = Memory.CallStackSize cilState.state
+                let callStackSize = Memory.CallStackSize state
                 let methodHasByRefParameter (m : Method) = m.Parameters |> Seq.exists (fun pi -> pi.ParameterType.IsByRef)
                 let entryMethod = entryMethodOf cilState
                 if isError && not hasException
                     then
                         if entryMethod.DeclaringType.IsValueType || methodHasByRefParameter entryMethod
-                        then Memory.ForcePopFrames (callStackSize - 2) cilState.state
-                        else Memory.ForcePopFrames (callStackSize - 1) cilState.state
+                        then Memory.ForcePopFrames (callStackSize - 2) state
+                        else Memory.ForcePopFrames (callStackSize - 1) state
                 if not isError || statistics.EmitError cilState message
                 then
-                    match TestGenerator.state2test isError entryMethod cilState message with
+                    match TestGenerator.state2test isError entryMethod state message with
                     | Some test ->
                         statistics.TrackFinished cilState
                         reporter test
@@ -136,7 +137,8 @@ type public SILI(options : SiliOptions) =
             reportStateIncomplete cilState
 
     let wrapOnTest (action : Action<UnitTest>) (state : cilState) =
-        Logger.info "Result of method %s is %O" (entryMethodOf state).FullName state.Result
+        let result = Memory.StateResult state.state
+        Logger.info "Result of method %s is %O" (entryMethodOf state).FullName result
         Application.terminateState state
         reportState action.Invoke false state null
 
