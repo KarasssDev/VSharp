@@ -6,15 +6,16 @@ open System
 open VSharp.Generator.Config
 open VSharp
 
-let private primitiveTypes = [
+
+
+let private numericTypes = [
     typeof<int8>; typeof<int16>; typeof<int32>; typeof<int64>
     typeof<uint8>; typeof<uint16>; typeof<uint32>; typeof<uint64>
     typeof<float>; typeof<double>
-    typeof<char>; typeof<string>
     typeof<byte>
-    typeof<bool>
-    typeof<decimal>
 ]
+
+let private primitiveTypes = List.append numericTypes [typeof<char>; typeof<bool>; typeof<string>; typeof<decimal>]
 
 let private numericCreators: (Type * int * (byte array -> obj)) list = [
     typeof<int8>, sizeof<int8>, BitConverter.ToInt16 >> box
@@ -30,16 +31,15 @@ let private numericCreators: (Type * int * (byte array -> obj)) list = [
     typeof<byte>, sizeof<byte>, (fun x -> x[0]) >> box
 ]
 
-
 let (|Primitive|_|) t =
     if List.contains t primitiveTypes then Some Primitive else None
 
-let (|Integer|_|) t =
-    if List.contains t primitiveTypes then Some Integer else None
+let (|Numeric|_|) t =
+    if List.contains t numericTypes then Some Numeric else None
 
 let generate (rnd: Random) (conf: GeneratorConfig) (t: Type) =
 
-    let generateIntegerType (t: Type) =
+    let generateNumericType (t: Type) =
         let _, size, create = List.find ( fun (x, _, _) -> x = t) numericCreators
         let buffer = Array.create<byte> size 0uy
         rnd.NextBytes(buffer);
@@ -62,7 +62,7 @@ let generate (rnd: Random) (conf: GeneratorConfig) (t: Type) =
         Decimal (rnd.Next(), rnd.Next(), rnd.Next(), sign, scale)
 
     match t with
-    | Integer -> generateIntegerType t
+    | Numeric -> generateNumericType t
     | _ when t = typeof<char> -> generateChar ()
     | _ when t = typeof<string> -> generateString ()
     | _ when t = typeof<bool> -> generateBool ()

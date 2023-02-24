@@ -10,9 +10,8 @@
     <ItemGroup>
         <Compile Include="Config.fs" />
         <Compile Include="Fuzzer.fs" />
-        <Compile Include="FuzzerInteraction.fs" />
         <Compile Include="Coverage.fs" />
-        <Compile Include="InstrumenterCoverage.fs" />
+        <Compile Include="FuzzerInteraction.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 

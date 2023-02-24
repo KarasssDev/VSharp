@@ -424,7 +424,7 @@ type public SILI(options : SiliOptions) =
                         let fuzzer = FuzzerInteraction(assemblyName, options.outputDirectory.FullName, cancellationToken)
                         for m in isolated do
                             do! fuzzer.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
-                        do! fuzzer.Wait ()
+                        do! fuzzer.WaitStatistics ()
                     } |> Async.RunSynchronously
 
                 let initializeAndStart () =

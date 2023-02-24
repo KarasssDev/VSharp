@@ -436,7 +436,15 @@ module internal Memory =
             | Some address -> address
             | None when obj = null -> VectorTime.zero
             | None ->
-                let typ = mostConcreteType t (obj.GetType())
+                match obj with
+                | :? Array ->
+                    let xs = obj :?> Array
+                    Logger.error $"Array type: {xs.GetType ()}"
+                    for x in xs do
+                        Logger.error $"Array value: {x} {x.GetType()}"
+                | _ -> ()
+                let typ = mostConcreteType (obj.GetType()) t
+                Logger.error $"t: {t} obj.GetType(): {obj.GetType()} typ: {typ}"
                 if typ.IsValueType then Logger.trace "allocateObjectIfNeed: boxing concrete struct %O" obj
                 let concreteAddress = allocateType state typ
                 cm.Allocate concreteAddress obj
