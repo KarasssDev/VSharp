@@ -4,6 +4,7 @@ open System
 open System.Collections.Generic
 open System.Reflection
 
+open System.Reflection.Emit
 open VSharp
 open VSharp.Core
 open VSharp.Fuzzer.FuzzerInfo
@@ -23,16 +24,34 @@ type Fuzzer ()  =
     let mutable method = Unchecked.defaultof<IMethod>
     let mutable methodBase = Unchecked.defaultof<MethodBase>
     let typeMocks = Dictionary<Type list, ITypeMock>()
+    let typeMocksCache = Dictionary<ITypeMock, Type>()
+
+    let moduleBuilder = lazy(
+        let dynamicAssemblyName = "VSharpFuzzerTypeMocks"
+        let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(AssemblyName dynamicAssemblyName, AssemblyBuilderAccess.Run)
+        assemblyBuilder.DefineDynamicModule dynamicAssemblyName
+    )
 
     member val private Config = defaultFuzzerConfig with get, set
     member val private Generator = Generator.Generator.generate with get
 
-    // TODO: refactor
-    member private this.SolveGenerics (method: IMethod) (model: model option): MethodBase option =
-
-        let getConcreteType = function
-        | ConcreteType t -> Some t
-        | _ -> None // TODO: add support for mock
+    member private this.SolveGenerics (method: IMethod) (moduleBuilder: ModuleBuilder) (model: model option): MethodBase option =
+        let getConcreteType =
+            function
+            | ConcreteType t -> t
+            | MockType mock ->
+                let getMock () =
+                    let freshMock = Mocking.Type(mock.Name)
+                    for t in mock.SuperTypes do
+                        freshMock.AddSuperType t
+                    for m in mock.MethodMocks do
+                        let rnd = Random(Int32.MaxValue)
+                        let genClause () = this.Generator rnd Generator.Config.defaultGeneratorConfig m.BaseMethod.ReturnType
+                        let clauses = Array.zeroCreate this.Config.MaxClauses |> Array.map genClause
+                        freshMock.AddMethod(m.BaseMethod, clauses)
+                    freshMock.Build moduleBuilder
+                typeMocks.Add (mock.SuperTypes |> List.ofSeq, mock)
+                Dict.getValueOrUpdate typeMocksCache mock getMock
 
         let typeModel =
             match model with
@@ -43,8 +62,8 @@ type Fuzzer ()  =
         try
             match SolveGenericMethodParameters typeModel method with
             | Some(classParams, methodParams) ->
-                let classParams = classParams |> Array.choose getConcreteType
-                let methodParams = methodParams |> Array.choose getConcreteType
+                let classParams = classParams |> Array.map getConcreteType
+                let methodParams = methodParams |> Array.map getConcreteType
                 if classParams.Length = methodBase.DeclaringType.GetGenericArguments().Length &&
                     (methodBase.IsConstructor || methodParams.Length = methodBase.GetGenericArguments().Length) then
                     let declaringType = Reflection.concretizeTypeParameters methodBase.DeclaringType classParams
@@ -58,9 +77,9 @@ type Fuzzer ()  =
     member private this.GetInfo (state: state option) =
         let model = Option.map (fun s -> s.model) state
         let methodBase =
-            match this.SolveGenerics method model with
+            match this.SolveGenerics method (moduleBuilder.Force ()) model with
             | Some methodBase -> methodBase
-            | None -> failwith "Can't solve generic parameters"
+            | None -> internalfail "Can't solve generic parameters"
         let argsInfo =
             method.Parameters
             |> Array.map (fun x -> Generator.Config.defaultGeneratorConfig, x.ParameterType)
@@ -199,6 +218,24 @@ type Fuzzer ()  =
         |> List.choose id
         |> List.map this.FuzzingResultToCompletedState
         |> Seq.ofList
+
+    member this.FuzzWithAction target (action: state -> Async<unit>) =
+        method <- target
+        methodBase <- method.MethodBase
+
+        let seed = Int32.MaxValue // Magic const!!!!
+        let info = this.GetInfo None
+        let rndGenerator = Random(seed)
+        let rnds =
+            [0..this.Config.MaxTest]
+            |> List.map (fun _ -> Random(rndGenerator.Next() |> int))
+        async {
+            for rnd in rnds do
+                let result = this.FuzzOnceWithTimeout info rnd
+                match result with
+                | Some v -> do! this.FuzzingResultToCompletedState v |> action
+                | None -> ()
+        }
 
     member this.Configure config =
         this.Config <- config

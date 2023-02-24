@@ -10,7 +10,6 @@ open VSharp
 open VSharp.Fuzzer.Coverage
 open VSharp.Interpreter.IL
 
-
 type ClientMessage =
     | Kill
     | Fuzz of string * int
@@ -36,6 +35,7 @@ type ServerMessage =
             let content = Array.map CoverageLocation.serialize arr |> String.concat ";"
             $"Statistics %s{content}"
 
+
     static member deserialize (str: string) =
         let parts = str.Split ' '
         match parts[0] with
@@ -46,85 +46,79 @@ type ServerMessage =
             Statistics content
         | _  -> internalfail $"Unknown server message: {str}"
 
-type FuzzerPipeServer () =
-    let io = new NamedPipeServerStream("FuzzerPipe", PipeDirection.InOut)
+type private FuzzerPipe<'a, 'b> (io: Stream, onStart, serialize: 'a -> string, deserialize: string -> 'b) =
     let reader = new StreamReader(io)
     let writer = new StreamWriter(io)
 
     do
-        io.WaitForConnection()
+        onStart ()
         writer.AutoFlush <- true
 
     member this.ReadMessage () =
         async {
             let! str = reader.ReadLineAsync() |> Async.AwaitTask
             Logger.trace $"Received raw msg: {str}"
-            return ClientMessage.deserialize str
+            return deserialize str
         }
 
-    member this.SendMessage msg =
-        let msg = $"{ServerMessage.serialize msg}\n"
-        Logger.error $"!!!!{msg}"
-        msg |> writer.WriteAsync  |> Async.AwaitTask
-
-type private FuzzerPipeClient () =
-    let io = new NamedPipeClientStream(".", "FuzzerPipe", PipeDirection.InOut)
-    let reader = new StreamReader(io)
-    let writer = new StreamWriter(io)
-
-    do
-        io.Connect()
-        writer.AutoFlush <- true
-
-    member this.ReadMessage () =
+    member this.ReadAll onEach =
         async {
-            let! str = reader.ReadLineAsync() |> Async.AwaitTask
-            Logger.trace $"Received raw msg: {str}"
-            return ServerMessage.deserialize str
+            let mutable completed = false
+            while not completed do
+                let! str = reader.ReadLineAsync() |> Async.AwaitTask
+                if str = null then
+                    completed <- true
+                else
+                    let! stop = deserialize str |> onEach
+                    completed <- stop
         }
 
     member this.SendMessage msg =
-        writer.WriteAsync $"{ClientMessage.serialize msg}\n" |> Async.AwaitTask
+        writer.WriteAsync $"{serialize msg}\n" |> Async.AwaitTask
 
+    member this.SendEnd () =
+        writer.Close ()
 
 type FuzzerApplication (assembly, outputDir) =
     let fuzzer = Fuzzer ()
-    let server = FuzzerPipeServer ()
+    let server =
+        let io = new NamedPipeServerStream("FuzzerPipe", PipeDirection.InOut)
+        FuzzerPipe (io, io.WaitForConnection, ServerMessage.serialize, ClientMessage.deserialize)
 
     let dummyStat = [| { assemblyName = "ass"; moduleName = "mmm"; methodToken = 1; offset = 1 }|]
 
-    member this.Start () =
-        let rec loop () =
-            async {
-                Logger.error "Try to read message"
-                let! command = server.ReadMessage()
-                Logger.error $"Received {command}"
-                match command with
-                | Fuzz (moduleName, methodToken) ->
-                    let methodBase = Reflection.resolveMethodBaseFromAssembly assembly moduleName methodToken
-                    let method = Application.getMethod methodBase
+    let mutable freeId = -1
+    let nextId () =
+        freeId <- freeId + 1
+        freeId
 
-                    Logger.error $"Start fuzzing {moduleName} {methodToken}"
-                    let result = fuzzer.Fuzz method
-                    Logger.error $"Successfully fuzzed {moduleName} {methodToken}"
+    let handleRequest command =
+        async {
+            match command with
+            | Fuzz (moduleName, methodToken) ->
+                let methodBase = Reflection.resolveMethodBaseFromAssembly assembly moduleName methodToken
+                let method = Application.getMethod methodBase
 
-                    let states =
-                        result
-                        |> Array.ofSeq
-                        |> Array.map (fun x -> TestGenerator.state2test false method x "")
-                        |> Array.choose id
+                Logger.error $"Start fuzzing {moduleName} {methodToken}"
 
-                    for i in 0..Array.length states do
-                        let state = states[i]
-                        let filePath = $"{outputDir}{Path.DirectorySeparatorChar}fuzzer_test{i}.vst"
+                do! fuzzer.FuzzWithAction method (fun state -> async {
+                    let test = TestGenerator.state2test false method state ""
+                    match test with
+                    | Some test ->
+                        let filePath = $"{outputDir}{Path.DirectorySeparatorChar}fuzzer_test{nextId ()}.vst"
                         Logger.trace $"Saved to {filePath}"
                         do! server.SendMessage (Statistics dummyStat)
-                        state.Serialize filePath
+                        test.Serialize filePath
+                    | None -> ()
+                })
 
-                    do! loop ()
-                | Kill -> ()
-            }
-        loop()
+                Logger.error $"Successfully fuzzed {moduleName} {methodToken}"
+                return false
+
+            | Kill -> return true
+        }
+
+    member this.Start () = server.ReadAll handleRequest
 
 type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: CancellationToken) =
     // TODO: find correct path to the client
@@ -153,35 +147,24 @@ type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: Cancellati
         Logger.trace "Fuzzer started"
         Process.Start(config)
 
-    let client = FuzzerPipeClient()
+    let client =
+        let io = new NamedPipeClientStream(".", "FuzzerPipe", PipeDirection.InOut)
+        FuzzerPipe(io, io.Connect, ClientMessage.serialize, ServerMessage.deserialize)
 
     let killFuzzer () = Logger.trace "Fuzzer killed"; proc.Kill ()
 
+    let handleRequest msg = async { Logger.error "Msg received"; return false }
     do
         cancellationToken.Register(killFuzzer)
         |> ignore
 
-
-    let mutable fuzzedMethodsCount = 0
-
-    let rec readLoop () =
-        async {
-            if fuzzedMethodsCount <> 0 then
-                let! (Statistics x) = client.ReadMessage ()
-                fuzzedMethodsCount <- fuzzedMethodsCount - 1
-                do Logger.error $"{x}"
-                do! readLoop ()
-        }
-
-    member this.Fuzz (moduleName: string, methodToken: int) =
-        fuzzedMethodsCount <- fuzzedMethodsCount + 1
-        client.SendMessage (Fuzz (moduleName, methodToken))
+    member this.Fuzz (moduleName: string, methodToken: int) = client.SendMessage (Fuzz (moduleName, methodToken))
 
     member this.WaitStatistics () =
         async {
             do! client.SendMessage Kill
             Logger.error "Kill message sent to fuzzer"
-            do! readLoop ()
+            do! client.ReadAll handleRequest
             do! proc.WaitForExitAsync () |> Async.AwaitTask
             Logger.error "Fuzzer stopped"
         }
