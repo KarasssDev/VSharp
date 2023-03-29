@@ -468,7 +468,6 @@ type public SILI(options : SiliOptions) =
                     if hasTimeout then Task.WaitAll(tasks, int(timeout * 1.5))
                     else Task.WaitAll(tasks); true
                 if not finished then Logger.warning "Execution was cancelled due to timeout"
-                Logger.error "1"
             with
             | :? AggregateException as e ->
                 Logger.warning "Execution was cancelled"
@@ -476,13 +475,10 @@ type public SILI(options : SiliOptions) =
             | e -> reportCrash e
         finally
             try
-                Logger.error "2"
                 statistics.ExplorationFinished()
-                Logger.error "3"
                 API.Restore()
-                Logger.error "4"
                 searcher.Reset()
-                Logger.error "5"
+                Logger.error "finished"
             with e -> reportCrash e
 
     member x.Stop() = isStopped <- true

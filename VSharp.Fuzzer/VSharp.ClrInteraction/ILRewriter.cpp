@@ -1220,6 +1220,10 @@ HRESULT RewriteIL(
             pNewInstr->m_opcode = CEE_LDC_I4;
             pNewInstr->m_Arg32 = (INT32)pInstr->m_offset;
             pilr->InsertBefore(pInstr, pNewInstr);
+            pNewInstr = pilr->NewILInstr();
+            pNewInstr->m_opcode = CEE_LDC_I4;
+            pNewInstr->m_Arg32 = methodId;
+            pilr->InsertBefore(pInstr, pNewInstr);
             IfFailRet(AddProbe(pilr, covProb->Branch_Addr, covProb->Branch_Sig.getSig(), pInstr));
             continue;
         }
@@ -1318,7 +1322,7 @@ HRESULT RewriteIL(
 
     IfFailRet(AddEnterProbe(&rewriter, enterMethodAddress, enterMethodSignature, methodId));
 
-    if (true) {
+    if (isMain) {
         tout << "instructions after: " << std::endl;
 
         for (ILInstr *pInstr = pilr->GetILList()->m_pNext; pInstr != pilr->GetILList(); pInstr = pInstr->m_pNext) {

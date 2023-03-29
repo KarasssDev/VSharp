@@ -47,11 +47,14 @@ void GetHistory(UINT_PTR size, UINT_PTR bytes) {
     for (auto el : coverageHistory) {
         el->serialize(buffer);
     }
+    LOG(tout << buffer - beginning);
+    LOG(tout << sizeBytes);
     assert(buffer - beginning == sizeBytes);
-
+    LOG(tout << "lol2");
+    LOG(tout << "kek3");
     *(ULONG*)size = sizeBytes;
     *(char**)bytes = beginning;
-
+    LOG(tout << "lol3");
     coverageHistory.clear(); // freeing up the history
 }
 
@@ -63,11 +66,11 @@ HRESULT initTokens(const CComPtr<IMetaDataEmit> &metadataEmit, std::vector<mdSig
     SIG_DEF(0x00, ELEMENT_TYPE_VOID)
     covProb->Track_Coverage_Sig.setSig(signatureToken);
     SIG_DEF(0x01, ELEMENT_TYPE_VOID, ELEMENT_TYPE_OFFSET)
-    covProb->Branch_Sig.setSig(signatureToken);
     covProb->Finalize_Call_Sig.setSig(signatureToken);
     covProb->Track_Call_Sig.setSig(signatureToken);
     covProb->Track_Tailcall_Sig.setSig(signatureToken);
     SIG_DEF(0x02, ELEMENT_TYPE_VOID, ELEMENT_TYPE_OFFSET, ELEMENT_TYPE_I4)
+    covProb->Branch_Sig.setSig(signatureToken);
     covProb->Track_Leave_Sig.setSig(signatureToken);
     covProb->Track_LeaveMain_Sig.setSig(signatureToken);
     SIG_DEF(0x03, ELEMENT_TYPE_VOID, ELEMENT_TYPE_OFFSET, ELEMENT_TYPE_I4, ELEMENT_TYPE_I4)

@@ -7,12 +7,7 @@ open VSharp.Fuzzer
 open VSharp
 open VSharp.Interpreter.IL
 open VSharp.Reflection
-// open System.Runtime.InteropServices
 
-// module InteropSyncCalls =
-    // TODO: add GetHistory
-    // [<DllImport("libvsharpConcolic", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)>]
-    // extern byte* GetProbes(uint* byteCount)
 
 let getAssembly argv =
     if Array.length argv < 1 then failwith "Unspecified path to assembly"

@@ -5,10 +5,14 @@ open System.Diagnostics
 open System.IO
 open System.IO.Pipes
 open System.Runtime.InteropServices
+open System.Text
 open System.Threading
+open Microsoft.FSharp.NativeInterop
 open VSharp
 open VSharp.Fuzzer.Coverage
 open VSharp.Interpreter.IL
+
+#nowarn "9"
 
 type ClientMessage =
     | Kill
@@ -79,6 +83,84 @@ type private FuzzerPipe<'a, 'b> (io: Stream, onStart, serialize: 'a -> string, d
     member this.SendEnd () =
         writer.Close ()
 
+module InteropSyncCalls =
+    [<DllImport("libvsharpConcolic", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)>]
+    extern void SetEntryMain(byte* assemblyName, int assemblyNameLength, byte* moduleName, int moduleNameLength, int methodToken)
+
+    [<DllImport("libvsharpConcolic", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)>]
+    extern void GetHistory(uint* size, uint* data)
+
+
+    let mutable private dataOffset = 0
+    let increaseOffset i = dataOffset <- dataOffset + i
+
+    let readInt32 data = 
+        let result = BitConverter.ToInt32(data, dataOffset)
+        increaseOffset sizeof<int32>
+        result
+
+    let readUInt32 data = 
+        let result = BitConverter.ToUInt32(data, dataOffset)
+        increaseOffset sizeof<uint32>
+        result
+
+    let readUInt64 data = 
+        let result = BitConverter.ToUInt64(data, dataOffset)
+        increaseOffset sizeof<uint64>
+        result
+
+    let readString data size =
+        let result = Array.sub data dataOffset (2 * size)
+        increaseOffset (2 * size)
+        Encoding.Unicode.GetString(result)
+
+    let deserializeMethodData data =
+        let methodToken = readUInt32 data
+        let assemblyNameSize = readUInt64 data
+        let assemblyName = readString data (int assemblyNameSize)
+        let moduleNameSize = readUInt64 data
+        let moduleName = readString data (int moduleNameSize)
+        {| MethodToken = methodToken; AssemblyName = assemblyName; ModuleName = moduleName |}
+
+    let deserializeCoverageInfo data =
+        let offset = readUInt32 data
+        let event = readInt32 data
+        let methodId = readInt32 data
+        {| Offset = offset; Event = event; MethodId = methodId |}
+
+    let deserializeArray elementDeserializer data =
+        let arraySize = readInt32 data
+        Array.init arraySize (fun _ -> elementDeserializer data)
+
+    let private deserializeHistory data =
+        let methodsData = deserializeArray deserializeMethodData data
+        let coverageInfo = deserializeArray deserializeCoverageInfo data
+
+        coverageInfo
+        |> Seq.map (fun x ->
+            let methodData = methodsData[x.MethodId]
+            {
+                assemblyName = methodData.AssemblyName
+                moduleName = methodData.ModuleName
+                methodToken = int methodData.MethodToken
+                offset = int x.Offset
+            }
+        )
+        |> Seq.toArray
+
+    let getHistory () =
+        use currentSizePtr = fixed [| 0ul |]
+        use dataPtr = fixed [|  |]
+        Logger.error "kek"
+        GetHistory(currentSizePtr, dataPtr)
+        Logger.error "lol"
+        let size = NativePtr.read currentSizePtr |> int
+        let data = Array.create size (byte 0)
+        Marshal.Copy(NativePtr.toNativeInt dataPtr, data, 0, size)
+
+        let history = deserializeArray deserializeHistory data
+        history
+
 type FuzzerApplication (assembly, outputDir) =
     let fuzzer = Fuzzer ()
     let server =
@@ -99,6 +181,12 @@ type FuzzerApplication (assembly, outputDir) =
                 let methodBase = Reflection.resolveMethodBaseFromAssembly assembly moduleName methodToken
                 let method = Application.getMethod methodBase
 
+                let assemblyNamePtr = fixed assembly.FullName.ToCharArray()
+                let moduleNamePtr = fixed moduleName.ToCharArray()
+                let assemblyNameLength = assembly.FullName.Length
+                let moduleNameLength = moduleName.Length
+                InteropSyncCalls.SetEntryMain(assemblyNamePtr |> NativePtr.toVoidPtr |> NativePtr.ofVoidPtr, assemblyNameLength, moduleNamePtr |> NativePtr.toVoidPtr |> NativePtr.ofVoidPtr, moduleNameLength, methodToken)
+
                 Logger.error $"Start fuzzing {moduleName} {methodToken}"
 
                 do! fuzzer.FuzzWithAction method (fun state -> async {
@@ -106,8 +194,10 @@ type FuzzerApplication (assembly, outputDir) =
                     match test with
                     | Some test ->
                         let filePath = $"{outputDir}{Path.DirectorySeparatorChar}fuzzer_test{nextId ()}.vst"
-                        Logger.trace $"Saved to {filePath}"
-                        do! server.SendMessage (Statistics dummyStat)
+                        Logger.error $"Saved to {filePath}"
+                        let hist = InteropSyncCalls.getHistory()
+                        Logger.error $"Statistics: {hist}"
+                        do! server.SendMessage (Statistics (hist[0]))
                         test.Serialize filePath
                     | None -> ()
                 })
@@ -153,7 +243,12 @@ type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: Cancellati
 
     let killFuzzer () = Logger.trace "Fuzzer killed"; proc.Kill ()
 
-    let handleRequest msg = async { Logger.error "Msg received"; return false }
+    let handleRequest msg =
+        async {
+            match msg with
+            | Statistics s ->  Logger.error $"Stat: {s}"
+            return false
+        }
     do
         cancellationToken.Register(killFuzzer)
         |> ignore
