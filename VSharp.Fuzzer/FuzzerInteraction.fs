@@ -88,11 +88,17 @@ module InteropSyncCalls =
     extern void SetEntryMain(byte* assemblyName, int assemblyNameLength, byte* moduleName, int moduleNameLength, int methodToken)
 
     [<DllImport("libvsharpConcolic", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)>]
-    extern void GetHistory(uint* size, uint* data)
+    extern void GetHistory(nativeint size, nativeint data)
 
 
     let mutable private dataOffset = 0
-    let increaseOffset i = dataOffset <- dataOffset + i
+    let mutable ssize = 0
+
+    let increaseOffset i =
+        if (dataOffset + i > ssize) then failwith "LOOOOOL"
+        Logger.error $"before: {dataOffset}"
+        Logger.error $"after: {dataOffset + i}"
+        dataOffset <- dataOffset + i
 
     let readInt32 data = 
         let result = BitConverter.ToInt32(data, dataOffset)
@@ -109,17 +115,16 @@ module InteropSyncCalls =
         increaseOffset sizeof<uint64>
         result
 
-    let readString data size =
+    let readString data =
+        let size = readUInt64 data |> int
         let result = Array.sub data dataOffset (2 * size)
         increaseOffset (2 * size)
         Encoding.Unicode.GetString(result)
 
     let deserializeMethodData data =
         let methodToken = readUInt32 data
-        let assemblyNameSize = readUInt64 data
-        let assemblyName = readString data (int assemblyNameSize)
-        let moduleNameSize = readUInt64 data
-        let moduleName = readString data (int moduleNameSize)
+        let assemblyName = readString data 
+        let moduleName = readString data
         {| MethodToken = methodToken; AssemblyName = assemblyName; ModuleName = moduleName |}
 
     let deserializeCoverageInfo data =
@@ -149,17 +154,33 @@ module InteropSyncCalls =
         |> Seq.toArray
 
     let getHistory () =
-        use currentSizePtr = fixed [| 0ul |]
-        use dataPtr = fixed [|  |]
-        Logger.error "kek"
-        GetHistory(currentSizePtr, dataPtr)
-        Logger.error "lol"
-        let size = NativePtr.read currentSizePtr |> int
-        let data = Array.create size (byte 0)
-        Marshal.Copy(NativePtr.toNativeInt dataPtr, data, 0, size)
+        let sizePtr = NativePtr.stackalloc<uint> 1
+        let dataPtrPtr = NativePtr.stackalloc<nativeint> 1
+        Logger.error $"pointer before: {NativePtr.toNativeInt dataPtrPtr}"
+        Logger.error $"value before: {NativePtr.read dataPtrPtr}"
 
-        let history = deserializeArray deserializeHistory data
-        history
+        GetHistory(NativePtr.toNativeInt sizePtr, NativePtr.toNativeInt dataPtrPtr)
+
+        let size = NativePtr.read sizePtr |> int
+        let dataPtr = NativePtr.read dataPtrPtr
+        Logger.error $"PTR: {dataPtr}"
+        Logger.error $"Size {size}"
+        ssize <- size
+        let data = Array.create size (byte 0)
+
+        Marshal.Copy(dataPtr, data, 0, size)
+        for i in 0..size do
+            Logger.error $"{i}: {int data[i]}"
+        try
+            let history = deserializeArray deserializeHistory data
+            Logger.error "3"
+            history
+        with
+        | e ->
+            Logger.error $"{ssize}"
+            Logger.error $"{dataOffset}"
+            Logger.error $"{e.Message}\n\n{e.StackTrace}"
+            failwith "kek"
 
 type FuzzerApplication (assembly, outputDir) =
     let fuzzer = Fuzzer ()

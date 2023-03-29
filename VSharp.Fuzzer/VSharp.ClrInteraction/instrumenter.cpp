@@ -47,12 +47,17 @@ void GetHistory(UINT_PTR size, UINT_PTR bytes) {
     for (auto el : coverageHistory) {
         el->serialize(buffer);
     }
+    for(int i = 0; i < sizeBytes; i++) {
+        LOG(tout << i << " : " << (int) buffer[i]);
+    }
     LOG(tout << buffer - beginning);
     LOG(tout << sizeBytes);
     assert(buffer - beginning == sizeBytes);
     LOG(tout << "lol2");
     LOG(tout << "kek3");
     *(ULONG*)size = sizeBytes;
+    LOG(tout << "tee");
+    LOG(tout << "pointer: " << (UINT_PTR) beginning);
     *(char**)bytes = beginning;
     LOG(tout << "lol3");
     coverageHistory.clear(); // freeing up the history
@@ -144,7 +149,7 @@ HRESULT Instrumenter::doInstrumentation(ModuleID oldModuleId, int methodId, cons
         memcpy(m_signatureTokens, (char *)&tokens[0], m_signatureTokensLength);
     }
 
-    LOG(tout << "Instrumenting token " << HEX(m_jittedToken) << "..." << std::endl);
+//    LOG(tout << "Instrumenting token " << HEX(m_jittedToken) << "..." << std::endl);
 
 //    unsigned codeLength = codeSize();
 //    char *bytes = new char[codeLength];
