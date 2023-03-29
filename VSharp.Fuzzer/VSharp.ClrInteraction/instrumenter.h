@@ -6,7 +6,18 @@
 #include <set>
 #include <map>
 
+#ifdef IMAGEHANDLER_EXPORTS
+#define IMAGEHANDLER_API __declspec(dllexport)
+#else
+#define IMAGEHANDLER_API __declspec(dllimport)
+#endif
+
+extern "C" IMAGEHANDLER_API void SetEntryMain(char* assemblyName, int assemblyNameLength, char* moduleName, int moduleNameLength, int methodToken);
+extern "C" IMAGEHANDLER_API void GetHistory(UINT_PTR size, UINT_PTR bytes);
+
 namespace vsharp {
+
+extern std::set<std::pair<FunctionID, ModuleID>> instrumentedMethods;
 
 class Instrumenter {
 private:
@@ -28,7 +39,7 @@ private:
     bool m_reJitInstrumentedStarted;
 
     HRESULT startReJitSkipped();
-    HRESULT doInstrumentation(ModuleID oldModuleId, const WCHAR *assemblyName, ULONG assemblyNameLength, const WCHAR *moduleName, ULONG moduleNameLength);
+    HRESULT doInstrumentation(ModuleID oldModuleId, int methodId, const WCHAR *moduleName, ULONG moduleNameLength);
 
     bool currentMethodIsMain(const WCHAR *moduleName, int moduleSize, mdMethodDef method) const;
 

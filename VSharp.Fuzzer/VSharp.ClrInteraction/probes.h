@@ -5,129 +5,125 @@
 #include "memory/memory.h"
 #include <vector>
 #include <algorithm>
+#include <mutex>
 
 namespace vsharp {
 
+class ThreadSignature {
+    std::map<ThreadID, mdSignature> threadMapping;
+    std::mutex mutex;
+
+public:
+    mdSignature getSig();
+    void setSig(mdSignature sig);
+};
+
+enum CoverageEvents {
+    EnterMain,
+    Enter,
+    LeaveMain,
+    Leave,
+    BranchHit,
+    Call,
+    Tailcall
+};
+
+struct CoverageRecord {
+    OFFSET offset;
+    CoverageEvents event;
+    CoverageRecord* next;
+    ThreadID thread;
+    int methodId; // used for enter and leave events
+
+    size_t sizeNode() const;
+    size_t size() const;
+    void serialize(char *&buffer) const;
+};
+
+class CoverageHistory {
+private:
+    std::set<int> visitedMethods;
+    CoverageRecord *head;
+public:
+    explicit CoverageHistory(OFFSET offset);
+    void AddCoverage(OFFSET offset, CoverageEvents event, int methodId);
+    size_t size() const;
+    void serialize(char *&buffer) const;
+};
+
+struct MethodInfo {
+    mdMethodDef token;
+    ULONG assemblyNameLength;
+    WCHAR *assemblyName;
+    ULONG moduleNameLength;
+    WCHAR *moduleName;
+
+    size_t size() const;
+    void serialize(char *&buffer) const;
+};
+
 /// ------------------------------ Commands ---------------------------
 
-bool areProbesEnabled = false;
+extern std::vector<MethodInfo> collectedMethods;
+extern std::vector<CoverageHistory*> coverageHistory;
+extern CoverageHistory *currentCoverage;
+extern bool areProbesEnabled;
 
-void enableProbes() {
-    areProbesEnabled = true;
-}
+void enableProbes();
+void disableProbes();
 
-void disableProbes() {
-    areProbesEnabled = false;
-}
+void addCoverage(OFFSET offset, CoverageEvents event, int methodId);
 
-void trackCoverage(OFFSET offset, bool &stillExpectsCoverage) {
-    if (!addCoverageStep(offset, stillExpectsCoverage)) {
-        freeLock();
-        FAIL_LOUD("Path divergence")
-    }
-}
+void trackCoverage(OFFSET offset, bool &stillExpectsCoverage);
 
 /// ------------------------------ Probes declarations ---------------------------
 
-void Track_Coverage(OFFSET offset) {
-    tout << "Track_Coverage" << std::endl;
-    if (!areProbesEnabled) return;
-    bool commandsDisabled;
-    trackCoverage(offset, commandsDisabled);
-}
+void Track_Coverage();
 
-INT_PTR Track_Coverage_Addr = (INT_PTR) &Track_Coverage;
-mdSignature Track_Coverage_Sig = 0;
+void Branch(OFFSET offset);
 
-void Branch(OFFSET offset) {
-    if (!areProbesEnabled) return;
-    bool commandsDisabled;
-    trackCoverage(offset, commandsDisabled);
-}
+void Track_Call(OFFSET offset);
 
-INT_PTR Branch_Addr = (INT_PTR) &Branch;
-mdSignature Branch_Addr_Sig = 0;
+void Track_Tailcall(OFFSET offset);
 
-// TODO: add Call probe
+void Track_Enter(OFFSET offset, int methodId, int isSpontaneous);
 
-void Track_Enter(mdMethodDef token, unsigned moduleToken, INT8 isSpontaneous) {
-    LOG(tout << "Track_Enter, token = " << HEX(token) << std::endl);
-    if (!areProbesEnabled) {
-        LOG(tout << "probes are disalbed; skipped");
-        return;
-    }
-    Stack &stack = vsharp::stack();
-    StackFrame *top = stack.isEmpty() ? nullptr : &stack.topFrame();
-    unsigned expected = stack.isEmpty() ? 0xFFFFFFFFu : top->resolvedToken();
-    if (expected == token || !expected && !isSpontaneous) {
-        LOG(tout << "Frame " << stack.framesCount() <<
-                    ": entering token " << HEX(token) <<
-                    ", expected token is " << HEX(expected) << std::endl);
-        if (!expected) top->setResolvedToken(token);
-        top->setSpontaneous(false);
-    } else {
-        LOG(tout << "Spontaneous enter! Details: expected token "
-                 << HEX(expected) << ", but entered " << HEX(token) << std::endl);
-        stack.pushFrame(token, token);
-        top = &stack.topFrame();
-        top->setSpontaneous(true);
-    }
-    top->setEnteredMarker(true);
-    top->setModuleToken(moduleToken);
-}
+void Track_EnterMain(OFFSET offset, int methodId, int isSpontaneous);
 
-INT_PTR Track_Enter_Addr = (INT_PTR) &Track_Enter;
-mdSignature Track_Enter_Sig = 0;
+void Track_Leave(OFFSET offset, int methodId);
 
-void Track_EnterMain(mdMethodDef token, unsigned moduleToken) {
-    enableProbes();
-    tout << "entered main" << std::endl;
-    Stack &stack = vsharp::stack();
-    assert(stack.isEmpty());
-    stack.pushFrame(token, token);
-    Track_Enter(token, moduleToken, 0);
-    enterMain();
-}
+void Track_LeaveMain(OFFSET offset, int methodId);
 
-INT_PTR Track_EnterMain_Addr = (INT_PTR) &Track_EnterMain;
-mdSignature Track_EnterMain_Sig = 0;
+void Finalize_Call(OFFSET offset);
 
-void Track_Leave(OFFSET offset) {
-    if (!areProbesEnabled) return;
-    Stack &stack = vsharp::stack();
-    StackFrame &top = stack.topFrame();
-    stack.popFrame();
-    LOG(tout << "Managed leave to frame " << stack.framesCount() << std::endl);
-}
+struct CoverageProbes {
+    INT_PTR Track_Coverage_Addr;
+    INT_PTR Branch_Addr;
+    INT_PTR Track_Enter_Addr;
+    INT_PTR Track_EnterMain_Addr;
+    INT_PTR Track_Leave_Addr;
+    INT_PTR Track_LeaveMain_Addr;
+    INT_PTR Finalize_Call_Addr;
+    INT_PTR Track_Call_Addr;
+    INT_PTR Track_Tailcall_Addr;
 
-INT_PTR Track_Leave_Addr = (INT_PTR) &Track_Leave;
-mdSignature Track_Leave_Sig = 0;
+    ThreadSignature Track_Coverage_Sig;
+    ThreadSignature Branch_Sig;
+    ThreadSignature Track_Enter_Sig;
+    ThreadSignature Track_EnterMain_Sig;
+    ThreadSignature Track_Leave_Sig;
+    ThreadSignature Track_LeaveMain_Sig;
+    ThreadSignature Finalize_Call_Sig;
+    ThreadSignature Track_Call_Sig;
+    ThreadSignature Track_Tailcall_Sig;
+};
 
-void Track_LeaveMain(OFFSET offset) {
-    disableProbes();
-    Stack &stack = vsharp::stack();
-    StackFrame &top = stack.topFrame();
-    stack.popFrame();
-    // NOTE: main left, further exploration is not needed, so only getting commands
-    mainLeft();
-}
+extern CoverageProbes coverageProbes;
 
-INT_PTR Track_LeaveMain_Addr = (INT_PTR) &Track_LeaveMain;
-mdSignature Track_LeaveMain_Sig = 0;
-
-void Finalize_Call(OFFSET offset) {
-    if (!areProbesEnabled) return;
-    Stack &stack = vsharp::stack();
-    if (!stack.topFrame().hasEntered()) {
-        // Extern has been called, should pop its frame and push return result onto stack
-        stack.popFrame();
-        LOG(tout << "Extern left! " << stack.framesCount() << " frames remained" << std::endl);
-    }
-}
-
-INT_PTR Finalize_Call_Addr = (INT_PTR) &Finalize_Call;
-mdSignature Finalize_Call_Sig = 0;
+CoverageProbes* getProbes();
+void InitializeProbes();
 
 }
+
 
 #endif // PROBES_H_

@@ -6,7 +6,6 @@
 #include "profiler_win.h"
 #endif
 #include "logging.h"
-#include "instrumenter.h"
 #include "memory/memory.h"
 
 #define UNUSED(x) (void)x
@@ -58,6 +57,8 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Initialize(IUnknown *pICorProfilerInfoUnk
     open_log();
 #endif
 
+    InitializeProbes();
+
     auto currentThreadGetter = [=]() {
         ThreadID result;
         HRESULT hr = corProfilerInfo->GetCurrentThreadID(&result);
@@ -75,9 +76,18 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Initialize(IUnknown *pICorProfilerInfoUnk
 
 HRESULT STDMETHODCALLTYPE CorProfiler::Shutdown()
 {
+    coverageHistory.clear();
+    for (auto el : collectedMethods) {
+        delete[] el.assemblyName;
+        delete[] el.moduleName;
+    }
+
 #ifdef _LOGGING
     close_log();
 #endif
+
+    delete[] mainModuleName;
+    delete[] mainAssemblyName;
 
     if (this->corProfilerInfo != nullptr)
     {
@@ -213,12 +223,11 @@ bool jitInProcess = false;
 
 HRESULT STDMETHODCALLTYPE CorProfiler::JITCompilationStarted(FunctionID functionId, BOOL fIsSafeToBlock)
 {
-    getLock();
     LOG(tout << "JITCompilationStarted, threadID = " << currentThread() << " funcId = " << functionId << std::endl);
     UNUSED(fIsSafeToBlock);
     auto instrument = new Instrumenter(*corProfilerInfo);
     HRESULT hr = instrument->instrument(functionId, false);
-    freeLock();
+    delete instrument;
     return hr;
 }
 
@@ -486,13 +495,13 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ExceptionUnwindFunctionEnter(FunctionID f
 HRESULT STDMETHODCALLTYPE CorProfiler::ExceptionUnwindFunctionLeave()
 {
     LOG(tout << "EXCEPTION UNWIND FUNCTION LEAVE!" << std::endl);
-    if (isMainEntered()) {
-        Stack &s = stack();
-        if (s.framesCount() == 1) {
-            // NOTE: sending command to end SILI execution
+    if (areProbesEnabled) {
+        tout << "in main?" << std::endl;
+        if (!stackBalanceDown() && isMainThread()) {
+            // stack is empty; main left
+            disableProbes();
+            ::currentCoverage = nullptr;
         }
-        // NOTE: popping stack frame
-        s.popFrame();
     }
     return S_OK;
 }

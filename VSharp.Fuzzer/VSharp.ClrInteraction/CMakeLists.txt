@@ -41,7 +41,7 @@ set(sources
     logging.cpp
     memory/memory.cpp
     memory/stack.cpp
-    ${CORECLR_PATH}/pal/prebuilt/idl/corprof_i.cpp)
+    ${CORECLR_PATH}/pal/prebuilt/idl/corprof_i.cpp probes.cpp)
 
 add_library(vsharpConcolic SHARED ${sources})
 

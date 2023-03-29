@@ -8,7 +8,7 @@
 #include <stdexcept>
 
 // TODO: add probes here!
-//#include "probes.h"
+#include "probes.h"
 
 #undef IfFailRet
 #define IfFailRet(EXPR) do { HRESULT hr = (EXPR); if(FAILED(hr)) { return (hr); } } while (0)
@@ -48,6 +48,11 @@ struct EHClause
     };
 };
 
+extern WCHAR *mainAssemblyName;
+extern int mainAssemblyNameLength;
+extern WCHAR *mainModuleName;
+extern int mainModuleNameLength;
+extern mdMethodDef mainToken;
 
 class ILRewriter {
 private:
@@ -110,7 +115,7 @@ HRESULT RewriteIL(
     ICorProfilerFunctionControl * pICorProfilerFunctionControl,
     ModuleID moduleID,
     mdMethodDef methodDef,
-    UINT_PTR enterMethodAddress,
-    ULONG32 methodSignature);
+    int methodId,
+    bool isMain);
 
 #endif // ILREWRITER_H_

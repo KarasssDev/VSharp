@@ -10,7 +10,49 @@ ThreadID currentThreadNotConfigured() {
 }
 
 std::function<ThreadID()> vsharp::currentThread(&currentThreadNotConfigured);
+static std::map<ThreadID, Stack *> vsharp::stacks;
+static std::map<ThreadID, int> vsharp::stackBalances;
+static ThreadID vsharp::mainThread = 0;
 
+void vsharp::stackBalanceUp() {
+    ThreadID thread = currentThread();
+    getLock();
+    auto pos = stackBalances.find(thread);
+    if (pos == ::stackBalances.end())
+        ::stackBalances[thread] = 1;
+    else
+        ::stackBalances[thread]++;
+    freeLock();
+}
+
+bool vsharp::stackBalanceDown() {
+    ThreadID thread = currentThread();
+    getLock();
+    auto pos = stackBalances.find(thread);
+    if (pos == ::stackBalances.end()) FAIL_LOUD("stack balance down on thread without stack!")
+    ::stackBalances[thread]--;
+    auto newBalance = ::stackBalances[thread];
+    freeLock();
+    return newBalance != 0;
+}
+
+void vsharp::emptyStacks() {
+    getLock();
+    ::stackBalances.empty();
+    freeLock();
+}
+
+void vsharp::setMainThread() {
+    ::mainThread = currentThread();
+}
+
+bool vsharp::isMainThread() {
+    return currentThread() == ::mainThread;
+}
+
+void vsharp::unsetMainThread() {
+    ::mainThread = 0;
+}
 
 ThreadID lastThreadID = 0;
 Stack *currentStack = nullptr;
@@ -90,40 +132,41 @@ void vsharp::setExpectedCoverage(const CoverageNode *expectedCoverage) {
 }
 
 bool vsharp::addCoverageStep(OFFSET offset, bool &stillExpectsCoverage) {
-    int threadToken = 0; // TODO: support multithreading
-    StackFrame &top = topFrame();
-    int moduleToken = top.moduleToken();
-    mdMethodDef methodToken = top.resolvedToken();
-    if (lastCoverageStep && lastCoverageStep->moduleToken == moduleToken && lastCoverageStep->methodToken == methodToken &&
-            lastCoverageStep->offset == offset && lastCoverageStep->threadToken == threadToken)
-    {
-        stillExpectsCoverage = !expectedCoverageExpirated;
-        expectedCoverageExpirated = !expectedCoverageStep;
-        return true;
-    }
-    if (expectedCoverageStep) {
-        stillExpectsCoverage = true;
-        if (expectedCoverageStep->moduleToken != moduleToken || expectedCoverageStep->methodToken != methodToken ||
-                expectedCoverageStep->offset != offset || expectedCoverageStep->threadToken != threadToken) {
-            LOG(tout << "Path divergence detected: expected method token " << HEX(expectedCoverageStep->methodToken) <<
-                ", got method token " << HEX(methodToken) << ", expected offset " << HEX(expectedCoverageStep->offset) <<
-                ", got offset " << HEX(offset) << std::endl);
-            return false;
-        }
-        expectedCoverageStep = expectedCoverageStep->next;
-    } else {
-        stillExpectsCoverage = false;
-        expectedCoverageExpirated = true;
-    }
-    LOG(tout << "Cover offset " << offset << " of " << HEX(methodToken));
-    CoverageNode *newStep = new CoverageNode{moduleToken, methodToken, offset, threadToken, nullptr};
-    if (lastCoverageStep) {
-        lastCoverageStep->next = newStep;
-    }
-    lastCoverageStep = newStep;
-    if (!newCoverageNodes) {
-        newCoverageNodes = newStep;
-    }
+//    int threadToken = 0; // TODO: support multithreading
+//    StackFrame &top = topFrame();
+//    int moduleToken = top.moduleToken();
+//    mdMethodDef methodToken = top.resolvedToken();
+//    if (lastCoverageStep && lastCoverageStep->moduleToken == moduleToken && lastCoverageStep->methodToken == methodToken &&
+//            lastCoverageStep->offset == offset && lastCoverageStep->threadToken == threadToken)
+//    {
+//        stillExpectsCoverage = !expectedCoverageExpirated;
+//        expectedCoverageExpirated = !expectedCoverageStep;
+//        return true;
+//    }
+//    if (expectedCoverageStep) {
+//        stillExpectsCoverage = true;
+//        if (expectedCoverageStep->moduleToken != moduleToken || expectedCoverageStep->methodToken != methodToken ||
+//                expectedCoverageStep->offset != offset || expectedCoverageStep->threadToken != threadToken) {
+//            LOG(tout << "Path divergence detected: expected method token " << HEX(expectedCoverageStep->methodToken) <<
+//                ", got method token " << HEX(methodToken) << ", expected offset " << HEX(expectedCoverageStep->offset) <<
+//                ", got offset " << HEX(offset) << std::endl);
+//            return false;
+//        }
+//        expectedCoverageStep = expectedCoverageStep->next;
+//    } else {
+//        stillExpectsCoverage = false;
+//        expectedCoverageExpirated = true;
+//    }
+//    LOG(tout << "Cover offset " << offset << " of " << HEX(methodToken));
+//    CoverageNode *newStep = new CoverageNode{moduleToken, methodToken, offset, threadToken, nullptr};
+//    if (lastCoverageStep) {
+//        lastCoverageStep->next = newStep;
+//    }
+//    lastCoverageStep = newStep;
+//    if (!newCoverageNodes) {
+//        newCoverageNodes = newStep;
+//    }
+//    return true;
     return true;
 }
 

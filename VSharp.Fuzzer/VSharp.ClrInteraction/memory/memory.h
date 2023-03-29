@@ -20,7 +20,18 @@ typedef UINT_PTR ThreadID;
 namespace vsharp {
 
 extern std::function<ThreadID()> currentThread;
-static std::map<ThreadID, Stack *> stacks;
+extern std::map<ThreadID, Stack *> stacks;
+extern std::map<ThreadID, int> stackBalances;
+extern ThreadID mainThread;
+
+void stackBalanceUp();
+
+// returns true if the stack is not empty
+bool stackBalanceDown();
+void emptyStacks();
+void setMainThread();
+void unsetMainThread();
+bool isMainThread();
 
 // Memory tracking
 
