@@ -50,7 +50,7 @@ size_t CoverageRecord::size() const {
         allNodesSize += currentNode->sizeNode();
         currentNode = currentNode->next;
     }
-    return sizeof(int) + allNodesSize;
+    return allNodesSize;
 }
 
 void CoverageRecord::serialize(char *&buffer) const {
@@ -128,6 +128,7 @@ void CoverageHistory::serialize(char *&buffer) const {
 
     // remembering the beginning to write the amount later; writing coverage records
     auto beginning = buffer;
+    buffer += sizeof(int);
     auto curNode = head;
     int nodes = 0;
     while (curNode != nullptr) {
