@@ -41,7 +41,7 @@ void GetHistory(UINT_PTR size, UINT_PTR bytes) {
         sizeBytes += el->size();
     }
 
-    char *buffer = (char*)malloc(sizeBytes);
+    char *buffer = (char*)malloc(sizeBytes); // the buffer pointer moves further after each serialization
     auto beginning = buffer; // remembering the first point to check the sizes were counted correctly
     WRITE_BYTES(int, buffer, coverageHistory.size());
     for (auto el : coverageHistory) {
@@ -73,10 +73,10 @@ HRESULT initTokens(const CComPtr<IMetaDataEmit> &metadataEmit, std::vector<mdSig
     SIG_DEF(0x01, ELEMENT_TYPE_VOID, ELEMENT_TYPE_OFFSET)
     covProb->Finalize_Call_Sig.setSig(signatureToken);
     covProb->Track_Call_Sig.setSig(signatureToken);
-    covProb->Track_Tailcall_Sig.setSig(signatureToken);
     SIG_DEF(0x02, ELEMENT_TYPE_VOID, ELEMENT_TYPE_OFFSET, ELEMENT_TYPE_I4)
     covProb->Branch_Sig.setSig(signatureToken);
     covProb->Track_Leave_Sig.setSig(signatureToken);
+    covProb->Track_Tailcall_Sig.setSig(signatureToken);
     covProb->Track_LeaveMain_Sig.setSig(signatureToken);
     SIG_DEF(0x03, ELEMENT_TYPE_VOID, ELEMENT_TYPE_OFFSET, ELEMENT_TYPE_I4, ELEMENT_TYPE_I4)
     covProb->Track_EnterMain_Sig.setSig(signatureToken);

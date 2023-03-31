@@ -82,11 +82,11 @@ void vsharp::disableProbes() {
     freeLock();
 }
 
-CoverageHistory::CoverageHistory(OFFSET offset) {
-    head = new CoverageRecord({offset, EnterMain, nullptr, currentThread(), 0});
+CoverageHistory::CoverageHistory(OFFSET offset, int methodId) {
+    head = new CoverageRecord({offset, EnterMain, nullptr, currentThread(), methodId});
 }
 
-void CoverageHistory::AddCoverage(OFFSET offset, CoverageEvents event, int methodId=-1) {
+void CoverageHistory::AddCoverage(OFFSET offset, CoverageEvents event, int methodId) {
     getLock();
     if (methodId != -1 && visitedMethods.find(methodId) == visitedMethods.end()) {
         visitedMethods.insert(methodId);
@@ -142,7 +142,7 @@ void CoverageHistory::serialize(char *&buffer) const {
     WRITE_BYTES(int, beginning, nodes);
 }
 
-void vsharp::addCoverage(OFFSET offset, CoverageEvents event, int methodId=-1) {
+void vsharp::addCoverage(OFFSET offset, CoverageEvents event, int methodId) {
     if (currentCoverage == nullptr) FAIL_LOUD("adding coverage on uninitialized node!")
     currentCoverage->AddCoverage(offset, event, methodId);
 }
@@ -192,16 +192,16 @@ void vsharp::Track_Call(OFFSET offset) {
     if (!areProbesEnabled) {
         return;
     }
-    addCoverage(offset, Call);
+    // addCoverage(offset, Call);
 }
 
-void vsharp::Track_Tailcall(OFFSET offset) {
+void vsharp::Track_Tailcall(OFFSET offset, int methodId) {
     if (!areProbesEnabled) {
         return;
     }
     // popping frame before tailcall execution
     stackBalanceDown();
-    addCoverage(offset, Tailcall);
+    addCoverage(offset, Tailcall, methodId);
 }
 
 void vsharp::Track_Enter(OFFSET offset, int methodId, int isSpontaneous) {
@@ -217,7 +217,7 @@ void vsharp::Track_EnterMain(OFFSET offset, int methodId, int isSpontaneous) {
     emptyStacks();
     stackBalanceUp();
     setMainThread();
-    currentCoverage = new CoverageHistory(offset);
+    currentCoverage = new CoverageHistory(offset, methodId);
     coverageHistory.push_back(currentCoverage);
 }
 
@@ -230,7 +230,7 @@ void vsharp::Track_Leave(OFFSET offset, int methodId) {
 void vsharp::Track_LeaveMain(OFFSET offset, int methodId) {
     disableProbes();
     unsetMainThread();
-    addCoverage(offset, LeaveMain);
+    addCoverage(offset, LeaveMain, methodId);
     // coverage collection ended; waiting for the next EnterMain call
     ::currentCoverage = nullptr;
     if (stackBalanceDown()) FAIL_LOUD("main left but stack is non-empty!")

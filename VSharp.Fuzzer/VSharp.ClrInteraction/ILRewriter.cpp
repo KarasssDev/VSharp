@@ -1267,6 +1267,10 @@ HRESULT RewriteIL(
                 pNewInstr->m_opcode = CEE_LDC_I4;
                 pNewInstr->m_Arg32 = (INT32)pInstr->m_offset;
                 pilr->InsertBefore(instr, pNewInstr);
+                pNewInstr = pilr->NewILInstr();
+                pNewInstr->m_opcode = CEE_LDC_I4;
+                pNewInstr->m_Arg32 = methodId;
+                pilr->InsertBefore(instr, pNewInstr);
                 IfFailRet(AddProbe(pilr, trackCallAddr, trackCallSig, instr));
                 break;
             }

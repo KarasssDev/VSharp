@@ -33,7 +33,7 @@ struct CoverageRecord {
     CoverageEvents event;
     CoverageRecord* next;
     ThreadID thread;
-    int methodId; // used for enter and leave events
+    int methodId;
 
     size_t sizeNode() const;
     size_t size() const;
@@ -45,7 +45,7 @@ private:
     std::set<int> visitedMethods;
     CoverageRecord *head;
 public:
-    explicit CoverageHistory(OFFSET offset);
+    explicit CoverageHistory(OFFSET offset, int methodId);
     void AddCoverage(OFFSET offset, CoverageEvents event, int methodId);
     size_t size() const;
     void serialize(char *&buffer) const;
@@ -84,7 +84,7 @@ void Branch(OFFSET offset, int methodId);
 
 void Track_Call(OFFSET offset);
 
-void Track_Tailcall(OFFSET offset);
+void Track_Tailcall(OFFSET offset, int methodId);
 
 void Track_Enter(OFFSET offset, int methodId, int isSpontaneous);
 
