@@ -44,6 +44,7 @@ class CoverageHistory {
 private:
     std::set<int> visitedMethods;
     CoverageRecord *head;
+    CoverageRecord *current;
 public:
     explicit CoverageHistory(OFFSET offset, int methodId);
     void AddCoverage(OFFSET offset, CoverageEvents event, int methodId);

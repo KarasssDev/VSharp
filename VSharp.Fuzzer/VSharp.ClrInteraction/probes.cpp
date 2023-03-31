@@ -84,6 +84,7 @@ void vsharp::disableProbes() {
 
 CoverageHistory::CoverageHistory(OFFSET offset, int methodId) {
     head = new CoverageRecord({offset, EnterMain, nullptr, currentThread(), methodId});
+    current = head;
 }
 
 void CoverageHistory::AddCoverage(OFFSET offset, CoverageEvents event, int methodId) {
@@ -92,8 +93,8 @@ void CoverageHistory::AddCoverage(OFFSET offset, CoverageEvents event, int metho
         visitedMethods.insert(methodId);
     }
     auto nextCoverage = new CoverageRecord({offset, event, nullptr, currentThread(), methodId});
-    head->next = nextCoverage;
-    head = nextCoverage;
+    current->next = nextCoverage;
+    current = nextCoverage;
     freeLock();
 }
 
