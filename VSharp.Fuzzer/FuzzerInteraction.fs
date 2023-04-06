@@ -83,6 +83,16 @@ type private FuzzerPipe<'a, 'b> (io: Stream, onStart, serialize: 'a -> string, d
     member this.SendEnd () =
         writer.Close ()
 
+module MeasureTime =
+    let measureTime name f =
+        let start = DateTime.Now
+        let result = f ()
+        let end_ = DateTime.Now
+        let diff = start - end_
+        Logger.error $"{name}: {diff.Milliseconds}"
+        result
+
+
 module InteropSyncCalls =
     [<DllImport("libvsharpConcolic", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)>]
     extern void SetEntryMain(byte* assemblyName, int assemblyNameLength, byte* moduleName, int moduleNameLength, int methodToken)
@@ -90,14 +100,10 @@ module InteropSyncCalls =
     [<DllImport("libvsharpConcolic", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)>]
     extern void GetHistory(nativeint size, nativeint data)
 
-
     let mutable private dataOffset = 0
     let mutable ssize = 0
 
     let increaseOffset i =
-        if (dataOffset + i > ssize) then failwith "LOOOOOL"
-        Logger.error $"before: {dataOffset}"
-        Logger.error $"after: {dataOffset + i}"
         dataOffset <- dataOffset + i
 
     let readInt32 data = 
@@ -110,15 +116,12 @@ module InteropSyncCalls =
         increaseOffset sizeof<uint32>
         result
 
-    let readUInt64 data = 
-        let result = BitConverter.ToUInt64(data, dataOffset)
-        increaseOffset sizeof<uint64>
-        result
-
     let readString data =
-        let size = readUInt64 data |> int
-        let result = Array.sub data dataOffset (2 * size)
+        let size = readUInt32 data |> int
+        let result = Array.sub data dataOffset (2 * size - 2)
         increaseOffset (2 * size)
+        Logger.error $"""{result |> Array.map string |> String.concat " "}"""
+        Logger.error $"{Encoding.Unicode.GetString(result)} {result |> Array.length} {Encoding.Unicode.GetString(result) |> fun x -> x.Length}"
         Encoding.Unicode.GetString(result)
 
     let deserializeMethodData data =
@@ -159,21 +162,24 @@ module InteropSyncCalls =
         Logger.error $"pointer before: {NativePtr.toNativeInt dataPtrPtr}"
         Logger.error $"value before: {NativePtr.read dataPtrPtr}"
 
+        dataOffset <- 0
+
+
         GetHistory(NativePtr.toNativeInt sizePtr, NativePtr.toNativeInt dataPtrPtr)
+
 
         let size = NativePtr.read sizePtr |> int
         let dataPtr = NativePtr.read dataPtrPtr
-        Logger.error $"PTR: {dataPtr}"
-        Logger.error $"Size {size}"
+
         ssize <- size
         let data = Array.create size (byte 0)
 
+        
         Marshal.Copy(dataPtr, data, 0, size)
-        for i in 0..size do
-            Logger.error $"{i}: {int data[i]}"
+
         try
             let history = deserializeArray deserializeHistory data
-            Logger.error "3"
+            MeasureTime.measureTime "free" <| fun () -> Marshal.FreeCoTaskMem(dataPtr)
             history
         with
         | e ->
@@ -187,8 +193,6 @@ type FuzzerApplication (assembly, outputDir) =
     let server =
         let io = new NamedPipeServerStream("FuzzerPipe", PipeDirection.InOut)
         FuzzerPipe (io, io.WaitForConnection, ServerMessage.serialize, ClientMessage.deserialize)
-
-    let dummyStat = [| { assemblyName = "ass"; moduleName = "mmm"; methodToken = 1; offset = 1 }|]
 
     let mutable freeId = -1
     let nextId () =
@@ -217,8 +221,9 @@ type FuzzerApplication (assembly, outputDir) =
                         let filePath = $"{outputDir}{Path.DirectorySeparatorChar}fuzzer_test{nextId ()}.vst"
                         Logger.error $"Saved to {filePath}"
                         let hist = InteropSyncCalls.getHistory()
-                        Logger.error $"Statistics: {hist}"
-                        do! server.SendMessage (Statistics (hist[0]))
+                        Logger.error $"count: {hist.Length}"
+                        Logger.error $"size: {hist[0].Length}"
+                        do! server.SendMessage (Statistics hist[0])
                         test.Serialize filePath
                     | None -> ()
                 })
@@ -231,7 +236,7 @@ type FuzzerApplication (assembly, outputDir) =
 
     member this.Start () = server.ReadAll handleRequest
 
-type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: CancellationToken) =
+type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: CancellationToken, saveStatistic: codeLocation seq -> unit) =
     // TODO: find correct path to the client
     let extension =
         if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then ".dll"
@@ -264,10 +269,30 @@ type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: Cancellati
 
     let killFuzzer () = Logger.trace "Fuzzer killed"; proc.Kill ()
 
+    let methods = System.Collections.Generic.Dictionary<int, Method>()
+    let toSiliStatistic (loc: CoverageLocation seq) =
+
+        let getMethod l =
+            match methods.TryGetValue(l.methodToken) with
+            | true, m -> m
+            | false, _ ->
+                let methodBase = Reflection.resolveMethodBase l.assemblyName l.moduleName l.methodToken
+                let method = Method methodBase
+                methods.Add (l.methodToken, method)
+                method
+
+        let toCodeLocation l =
+            {
+                offset = LanguagePrimitives.Int32WithMeasure l.offset
+                method = getMethod l
+            }
+            
+        loc |> Seq.map toCodeLocation
+
     let handleRequest msg =
         async {
             match msg with
-            | Statistics s ->  Logger.error $"Stat: {s}"
+            | Statistics s -> toSiliStatistic s |> saveStatistic
             return false
         }
     do
@@ -276,7 +301,7 @@ type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: Cancellati
 
     member this.Fuzz (moduleName: string, methodToken: int) = client.SendMessage (Fuzz (moduleName, methodToken))
 
-    member this.WaitStatistics () =
+    member this.WaitStatistics ()  =
         async {
             do! client.SendMessage Kill
             Logger.error "Kill message sent to fuzzer"

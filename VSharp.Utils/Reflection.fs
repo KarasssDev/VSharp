@@ -64,6 +64,8 @@ module public Reflection =
                     AssemblyManager.LoadFromAssemblyName assemblyName
                 with _ ->
                     AssemblyManager.LoadFromAssemblyPath moduleName
+        for m in assembly.Modules do
+            if m.FullyQualifiedName <> moduleName then printfn $"{m.FullyQualifiedName}\n{moduleName}"
         assembly.Modules |> Seq.find (fun m -> m.FullyQualifiedName = moduleName)
 
     let resolveMethodBase (assemblyName : string) (moduleName : string) (token : int32) =

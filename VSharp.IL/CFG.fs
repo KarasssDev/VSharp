@@ -247,7 +247,7 @@ and CfgInfo internal (cfg : CfgTemporaryData) =
     member this.HasSiblings offset =
         this.IsBasicBlockStart offset && cfg.BlocksWithSiblings.Contains offset
 
-and Method internal (m : MethodBase) as this =
+and Method (m : MethodBase) as this =
     inherit MethodWithBody(m)
     let cfg = lazy(
         if this.HasBody then

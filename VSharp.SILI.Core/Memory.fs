@@ -444,7 +444,6 @@ module internal Memory =
                         Logger.error $"Array value: {x} {x.GetType()}"
                 | _ -> ()
                 let typ = mostConcreteType (obj.GetType()) t
-                Logger.error $"t: {t} obj.GetType(): {obj.GetType()} typ: {typ}"
                 if typ.IsValueType then Logger.trace "allocateObjectIfNeed: boxing concrete struct %O" obj
                 let concreteAddress = allocateType state typ
                 cm.Allocate concreteAddress obj

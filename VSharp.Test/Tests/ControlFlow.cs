@@ -33,6 +33,31 @@ namespace IntegrationTests
         }
 
         [TestSvm(100)]
+        public static int SwitchKek(int x)
+        {
+            if (0 < x && x < 10000)
+            {
+                        
+            }
+            switch (x)
+            {
+
+                case 0:
+                    return 1;
+                case 1:
+                    return 11;
+                case 2:
+                    return 101;
+                case 3:
+                    return 1001;
+                case 4:
+                    return 10001;
+                default:
+                    return -1;
+            }
+        }
+
+        [TestSvm(100)]
         public static int ForSimple(int x)
         {
             int sum = 0;
