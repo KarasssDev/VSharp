@@ -60,6 +60,7 @@ type Fuzzer ()  =
             | _ -> __unreachable__()
 
         try
+            // Fix generics
             match SolveGenericMethodParameters typeModel method with
             | Some(classParams, methodParams) ->
                 let classParams = classParams |> Array.map getConcreteType
@@ -92,7 +93,6 @@ type Fuzzer ()  =
 
     member private this.FuzzOnce (methodInfo: FuzzingMethodInfo) (rnd: Random) =
         try
-            Logger.error $"Try fuzz once"
             let method = methodInfo.Method
             let args = methodInfo.ArgsInfo |> Array.map (fun (config, t) -> this.Generator rnd config t, t)
             let mutable obj = null
@@ -104,10 +104,9 @@ type Fuzzer ()  =
 
             try
                 let returned = method.Invoke(obj, Array.map fst args)
-                Logger.error $"Fuzzed succ"
                 Returned (argsWithThis, returned) |> Some
             with
-            | :? TargetInvocationException as e -> Logger.error $"Fuzzed succ"; Thrown (argsWithThis, e.InnerException) |> Some
+            | :? TargetInvocationException as e -> Thrown (argsWithThis, e.InnerException) |> Some
         with
             | e ->
                 Logger.error $"Fuzzed failed with: {e.Message}"
@@ -159,7 +158,7 @@ type Fuzzer ()  =
         let args = Array.tail args
         let createTerm (arg, argType) = Memory.ObjectToTerm state arg argType |> Some
         let parameters = Array.map createTerm args |> List.ofArray
-        Logger.info $"[Fuzzer] Creating state with params: {parameters}"
+
         Memory.InitFunctionFrame state method this (Some parameters)
         // Filling used type mocks
         for mock in typeMocks do state.typeMocks.Add mock

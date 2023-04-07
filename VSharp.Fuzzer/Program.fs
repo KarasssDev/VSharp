@@ -2,11 +2,8 @@ module VSharp.Fuzzer.Program
 
 open System.Diagnostics
 open System.IO
-open System.IO.Pipes
 open VSharp.Fuzzer
 open VSharp
-open VSharp.Interpreter.IL
-open VSharp.Reflection
 
 
 let getAssembly argv =
@@ -21,8 +18,6 @@ let getOutputDir argv =
 
 [<EntryPoint>]
 let main argv =
-    //while Debugger.IsAttached |> not do ()
-
     let assembly = getAssembly argv
     let outputDir = getOutputDir argv
     let log = new StreamWriter (File.OpenWrite $"{outputDir}{Path.DirectorySeparatorChar}fuzzer.log")
