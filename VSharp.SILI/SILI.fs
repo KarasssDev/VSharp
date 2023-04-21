@@ -1,6 +1,7 @@
 namespace VSharp.Interpreter.IL
 
 open System
+open System.IO
 open System.Reflection
 open System.Collections.Generic
 open System.Threading
@@ -420,13 +421,14 @@ type public SILI(options : SiliOptions) =
             try
                 let initializeAndStartFuzzer cancellationToken () =
                     async {
-                        let assemblyName = (Seq.head isolated).Module.Assembly.Location
+                        let assemblyPath = (Seq.head isolated).Module.Assembly.Location
                         let fuzzer = FuzzerInteraction(
-                            assemblyName,
-                            options.outputDirectory.FullName,
                             cancellationToken,
-                            statistics.SetBasicBlocksAsCoveredByTest
+                            statistics.SetBasicBlocksAsCoveredByTest "fuzzer",
+                            Directory.GetParent(assemblyPath).FullName,
+                            options.outputDirectory.FullName
                         )
+                        do! fuzzer.Setup(assemblyPath, options.outputDirectory.FullName)
                         for m in isolated do
                             do! fuzzer.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
                         do! fuzzer.WaitStatistics ()

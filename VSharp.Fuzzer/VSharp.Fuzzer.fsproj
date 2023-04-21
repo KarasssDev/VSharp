@@ -11,7 +11,8 @@
         <Compile Include="Config.fs" />
         <Compile Include="Fuzzer.fs" />
         <Compile Include="Coverage.fs" />
-        <Compile Include="InteropSyncCalls.fs" />
+        <Compile Include="Interop.fs" />
+        <Compile Include="Docker.fs" />
         <Compile Include="FuzzerInteraction.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>

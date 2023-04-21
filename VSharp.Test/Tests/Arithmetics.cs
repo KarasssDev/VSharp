@@ -332,6 +332,27 @@ namespace IntegrationTests
     [TestSvmFixture]
     public sealed class Arithmetics
     {
+        [TestSvm]
+        public static int TestCoverage(int x)
+        {
+            int sum = 0;
+
+            for (int i = 1; i <= 10000; i++)
+            {
+                sum += i;
+            }
+
+            if (x == 1_000)
+            {
+                return sum;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+
         // 7 + n
         [Ignore("Exceptions handling")]
         public static int ArithmeticsMethod1(int n, int m)

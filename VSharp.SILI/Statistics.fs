@@ -234,17 +234,31 @@ type public SILIStatistics(statsDumpIntervalMs : int) as this =
             coveredBlocks.Value.ContainsKey blockStart.offset
         else false
 
-    member x.SetBasicBlocksAsCoveredByTest(blocks : codeLocation seq) =
+    member x.SetBasicBlocksAsCoveredByTest (label: string) (blocks : codeLocation seq) =
         let mutable coveredBlocks = ref null
+
+        let blocks = Seq.distinct blocks
+
         for block in blocks do
+            let mutable isNew = false
+            let offset =
+                match block.method.CFG with
+                | Some cfg -> cfg.ResolveBasicBlock block.offset
+                | None -> block.offset
+
             if blocksCoveredByTests.TryGetValue(block.method, coveredBlocks) then
-                coveredBlocks.Value.TryAdd(block.offset, ()) |> ignore
+                isNew <- isNew || coveredBlocks.Value.TryAdd(offset, ())
             else
                 let coveredBlocks = ConcurrentDictionary()
-                coveredBlocks.TryAdd(block.offset, ()) |> ignore
-                blocksCoveredByTests.TryAdd(block.method, coveredBlocks) |> ignore
+                coveredBlocks.TryAdd(offset, ()) |> ignore
+                isNew <- isNew || blocksCoveredByTests.TryAdd(block.method, coveredBlocks)
             if block.method.InCoverageZone then
                 Interlocked.Exchange(ref isVisitedBlocksNotCoveredByTestsRelevant, 0) |> ignore
+                
+            if block.method.Name = "TestCoverage" then
+                if isNew then Logger.error $"New stat: {offset} {label}"
+                elif (not isNew) && (label = "SE") then Logger.error $"Known stat from SE: {offset}"
+                elif (not isNew) && (label = "fuzzer") then Logger.error $"Known stat from fuzzer: {block.offset}"
 
     member x.GetApproximateCoverage (methods : Method seq) =
         let getCoveredBlocksCount (m : Method) =
@@ -293,7 +307,7 @@ type public SILIStatistics(statsDumpIntervalMs : int) as this =
         testsCount <- testsCount + 1u
         Logger.traceWithTag Logger.stateTraceTag $"FINISH: {s.id}"
         x.CreateContinuousDump()
-        x.SetBasicBlocksAsCoveredByTest s.history
+        x.SetBasicBlocksAsCoveredByTest "SE" s.history
         visitedBlocksNotCoveredByTests.Remove s |> ignore
 
     member x.EmitError (s : cilState) (errorMessage : string) =

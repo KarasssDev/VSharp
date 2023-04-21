@@ -4,7 +4,9 @@ open System
 open System.Diagnostics
 open System.IO
 open System.IO.Pipes
+open System.Net.Sockets
 open System.Runtime.InteropServices
+open System.Text
 open System.Threading
 open Microsoft.FSharp.NativeInterop
 open VSharp
@@ -12,23 +14,26 @@ open VSharp.Fuzzer.Coverage
 open VSharp.Interpreter.IL
 
 
-type ClientMessage =
+type ServerMessage =
     | Kill
     | Fuzz of string * int
+    | Setup of string * string
 
     static member serialize msg =
         match msg with
         | Kill -> "Kill"
         | Fuzz (moduleName, methodToken) -> $"Fuzz %s{moduleName} %d{methodToken}"
+        | Setup (assemblyPath, outputDir) -> $"Setup %s{assemblyPath} %s{outputDir}"
 
     static member deserialize (str: string) =
         let parts = str.Split ' '
         match parts[0] with
         | "Kill" -> Kill
         | "Fuzz" -> assert (parts.Length = 3); Fuzz (parts[1], int parts[2])
+        | "Setup" -> assert (parts.Length = 3); Setup (parts[1], parts[2])
         | _ -> internalfail $"Unknown client message: {str}"
 
-type ServerMessage =
+type ClientMessage =
     | Statistics of CoverageLocation array
 
     static member serialize msg =
@@ -53,12 +58,15 @@ type private FuzzerPipe<'a, 'b> (io: Stream, onStart, serialize: 'a -> string, d
     let writer = new StreamWriter(io)
 
     do
+        Logger.error "try to connect fuzzer"
         onStart ()
+        Logger.error "fuzzer connected"
         writer.AutoFlush <- true
 
     member this.ReadMessage () =
         async {
             let! str = reader.ReadLineAsync() |> Async.AwaitTask
+            Logger.trace $"Received raw msg: {str}"
             return deserialize str
         }
 
@@ -80,11 +88,13 @@ type private FuzzerPipe<'a, 'b> (io: Stream, onStart, serialize: 'a -> string, d
     member this.SendEnd () =
         writer.Close ()
 
-type FuzzerApplication (assembly, outputDir) =
+type FuzzerApplication () =
     let fuzzer = Fuzzer ()
-    let server =
-        let io = new NamedPipeServerStream("FuzzerPipe", PipeDirection.InOut)
-        FuzzerPipe (io, io.WaitForConnection, ServerMessage.serialize, ClientMessage.deserialize)
+    let client =
+        let io = new NamedPipeClientStream(".", "FuzzerPipe", PipeDirection.InOut)
+        FuzzerPipe(io, io.Connect, ClientMessage.serialize, ServerMessage.deserialize)
+    let mutable assembly = Unchecked.defaultof<Reflection.Assembly>
+    let mutable outputDir = ""
 
     let mutable freeId = -1
     let nextId () =
@@ -94,11 +104,17 @@ type FuzzerApplication (assembly, outputDir) =
     let handleRequest command =
         async {
             match command with
+            | Setup(assemblyPath, newOutputDir) ->
+                assembly <- AssemblyManager.LoadFromAssemblyPath assemblyPath
+                outputDir <- newOutputDir
+                return false
             | Fuzz (moduleName, methodToken) ->
                 let methodBase = Reflection.resolveMethodBaseFromAssembly assembly moduleName methodToken
                 let method = Application.getMethod methodBase
 
-                InteropSyncCalls.setEntryMain assembly moduleName methodToken
+                Interop.InstrumenterCalls.setEntryMain assembly moduleName methodToken
+
+                Logger.error $"Start fuzzing {moduleName} {methodToken}"
 
                 do! fuzzer.FuzzWithAction method (fun state -> async {
                     let test = TestGenerator.state2test false method state ""
@@ -106,50 +122,43 @@ type FuzzerApplication (assembly, outputDir) =
                     | Some test ->
                         let filePath = $"{outputDir}{Path.DirectorySeparatorChar}fuzzer_test{nextId ()}.vst"
                         Logger.error $"Saved to {filePath}"
-                        let hist = InteropSyncCalls.getHistories()
-                        do! server.SendMessage (Statistics hist[0])
+                        let hist = Interop.InstrumenterCalls.getHistory()
+                        Logger.error $"count: {hist.Length}"
+                        Logger.error $"size: {hist[0].Length}"
+                        do! client.SendMessage (Statistics hist[0])
                         test.Serialize filePath
                     | None -> ()
                 })
 
+                Logger.error $"Successfully fuzzed {moduleName} {methodToken}"
                 return false
 
             | Kill -> return true
         }
 
-    member this.Start () = server.ReadAll handleRequest
+    member this.Start () = client.ReadAll handleRequest
 
-type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: CancellationToken, saveStatistic: codeLocation seq -> unit) =
-    // TODO: find correct path to the client
-    let extension =
-        if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then ".dll"
-        elif RuntimeInformation.IsOSPlatform(OSPlatform.Linux) then ".so"
-        elif RuntimeInformation.IsOSPlatform(OSPlatform.OSX) then ".dylib"
-        else __notImplemented__()
-    let pathToClient = $"libvsharpConcolic{extension}"
-    let profiler = $"%s{Directory.GetCurrentDirectory()}%c{Path.DirectorySeparatorChar}%s{pathToClient}"
+type FuzzerInteraction (
+    cancellationToken: CancellationToken,
+    saveStatistic: codeLocation seq -> unit,
+    dllsPath: string,
+    outputPath: string
+    ) =
 
-    let proc =
-        let config =
-            let info = ProcessStartInfo()
-            info.EnvironmentVariables.["CORECLR_PROFILER"] <- "{2800fea6-9667-4b42-a2b6-45dc98e77e9e}"
-            info.EnvironmentVariables.["CORECLR_ENABLE_PROFILING"] <- "1"
-            info.EnvironmentVariables.["CORECLR_PROFILER_PATH"] <- profiler
-            info.WorkingDirectory <- Directory.GetCurrentDirectory()
-            info.FileName <- "dotnet"
-            info.Arguments <- $"VSharp.Fuzzer.dll %s{pathToAssembly} %s{outputDir}"
-            info.UseShellExecute <- false
-            info.RedirectStandardInput <- false
-            info.RedirectStandardOutput <- false
-            info.RedirectStandardError <- false
-            info
-        Process.Start(config)
+    // let extension =
+    //     if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then ".dll"
+    //     elif RuntimeInformation.IsOSPlatform(OSPlatform.Linux) then ".so"
+    //     elif RuntimeInformation.IsOSPlatform(OSPlatform.OSX) then ".dylib"
+    //     else __notImplemented__()
+    //
+    // let pathToClient = $"libvsharpConcolic{extension}"
+    // let profiler = $"%s{Directory.GetCurrentDirectory()}%c{Path.DirectorySeparatorChar}%s{pathToClient}"
 
-    let client =
-        let io = new NamedPipeClientStream(".", "FuzzerPipe", PipeDirection.InOut)
-        FuzzerPipe(io, io.Connect, ClientMessage.serialize, ServerMessage.deserialize)
+    let fuzzerContainer = Docker.startFuzzer dllsPath outputPath
 
-    let killFuzzer () = Logger.trace "Fuzzer killed"; proc.Kill ()
+    let server =
+        let io = new NamedPipeServerStream("FuzzerPipe", PipeDirection.InOut)
+        FuzzerPipe (io, io.WaitForConnection, ServerMessage.serialize, ClientMessage.deserialize)
 
     let methods = System.Collections.Generic.Dictionary<int, Method>()
     let toSiliStatistic (loc: CoverageLocation seq) =
@@ -159,7 +168,7 @@ type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: Cancellati
             | true, m -> m
             | false, _ ->
                 let methodBase = Reflection.resolveMethodBase l.assemblyName l.moduleName l.methodToken
-                let method = Method methodBase
+                let method = Application.getMethod methodBase
                 methods.Add (l.methodToken, method)
                 method
 
@@ -168,7 +177,7 @@ type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: Cancellati
                 offset = LanguagePrimitives.Int32WithMeasure l.offset
                 method = getMethod l
             }
-
+            
         loc |> Seq.map toCodeLocation
 
     let handleRequest msg =
@@ -177,17 +186,24 @@ type FuzzerInteraction (pathToAssembly, outputDir, cancellationToken: Cancellati
             | Statistics s -> toSiliStatistic s |> saveStatistic
             return false
         }
+
     do
-        cancellationToken.Register(killFuzzer)
+        cancellationToken.Register(fun () -> fuzzerContainer.Kill ())
         |> ignore
 
-    member this.Fuzz (moduleName: string, methodToken: int) = client.SendMessage (Fuzz (moduleName, methodToken))
+    member this.Fuzz (moduleName: string, methodToken: int) =
+        Logger.error $"Send to fuzz {methodToken}"
+        server.SendMessage (Fuzz (moduleName, methodToken))
 
     member this.WaitStatistics ()  =
         async {
-            do! client.SendMessage Kill
-            do! client.ReadAll handleRequest
-            do! proc.WaitForExitAsync () |> Async.AwaitTask
+            do! server.SendMessage Kill
+            Logger.error "Kill message sent to fuzzer"
+            do! server.ReadAll handleRequest
+            do! fuzzerContainer.WaitForExitAsync () |> Async.AwaitTask
+            Logger.error "Fuzzer stopped"
         }
 
-    member this.Kill = killFuzzer
+    member this.Setup (assemblyPath, outputDir) =  Setup (assemblyPath, outputDir) |> server.SendMessage
+
+    // member this.Kill = killFuzzer
