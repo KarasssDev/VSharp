@@ -238,3 +238,4 @@ VSharp.CoverageInstrumenter/host/*
 
 # Rendered tests
 VSharp.Test/GeneratedTests/**
+VSharp.CoverageInstrumenter/.vscode/settings.json
