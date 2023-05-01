@@ -11,7 +11,7 @@ open VSharp
 [<Struct>]
 type internal temporaryCallInfo = {callee: MethodWithBody; callFrom: offset; returnTo: offset}
 
-type private BasicBlock (startVertex: offset) =
+type BasicBlock (startVertex: offset) =
     let innerVertices = ResizeArray<offset>()
     let mutable finalVertex = None
     member this.StartVertex = startVertex
@@ -23,12 +23,17 @@ type private BasicBlock (startVertex: offset) =
                 | Some v -> v
                 | None -> failwith "Final vertex of this basic block is not specified yet."
         and set v = finalVertex <- Some v
+    member this.BlockSize = innerVertices.Count + 1
+    interface IComparable with
+        member x.CompareTo obj = (int x.StartVertex) - (int (obj :?> BasicBlock).StartVertex)
 
 type internal CfgTemporaryData (method : MethodWithBody) =
     let () = assert method.HasBody
     let ilBytes = method.ILBytes
     let exceptionHandlers = method.ExceptionHandlers
+    let sortedBasicBlocks = ResizeArray<BasicBlock>()
     let sortedOffsets = ResizeArray<offset>()
+    let mutable methodSize = 0
     let edges = Dictionary<offset, HashSet<offset>>()
     let sinks = ResizeArray<_>()
     let calls = ResizeArray<temporaryCallInfo>()
@@ -148,9 +153,14 @@ type internal CfgTemporaryData (method : MethodWithBody) =
         startVertices
         |> Array.iter (fun v -> dfs' (BasicBlock v) v)
 
-        verticesOffsets
+        vertexToBasicBloc
+        |> Seq.choose id
         |> Seq.sort
-        |> Seq.iter sortedOffsets.Add
+        |> Seq.iter (fun bb ->
+            sortedBasicBlocks.Add bb
+            sortedOffsets.Add bb.StartVertex
+        )
+        methodSize <- sortedOffsets.Count
 
     let cfgDistanceFrom = GraphUtils.distanceCache<offset>()
 
@@ -175,15 +185,18 @@ type internal CfgTemporaryData (method : MethodWithBody) =
             |]
 
         dfs startVertices
-        sortedOffsets |> Seq.iter (fun bb ->
-            if edges.ContainsKey bb then
-                let outgoing = edges.[bb]
+        sortedBasicBlocks |> Seq.iter (fun bb ->
+            let offset = bb.StartVertex
+            if edges.ContainsKey offset then
+                let outgoing = edges.[offset]
                 if outgoing.Count > 1 then
                     offsetsWithSiblings.UnionWith outgoing
-            else edges.Add(bb, HashSet<_>()))
+            else edges.Add(offset, HashSet<_>()))
 
     member this.ILBytes = ilBytes
+    member this.SortedBasicBlocks = sortedBasicBlocks
     member this.SortedOffsets = sortedOffsets
+    member this.MethodSize = methodSize
     member this.Edges = edges
     member this.Calls = calls
     member this.Sinks = sinks.ToArray()
@@ -220,6 +233,7 @@ and CfgInfo internal (cfg : CfgTemporaryData) =
         binSearch cfg.SortedOffsets offset 0 (cfg.SortedOffsets.Count - 1)
 
     let resolveBasicBlock offset = cfg.SortedOffsets.[resolveBasicBlockIndex offset]
+    let resolveBasicBlockObject offset = cfg.SortedBasicBlocks.[resolveBasicBlockIndex offset]
 
     let sinks = cfg.Sinks |> Array.map resolveBasicBlock
     let loopEntries = cfg.LoopEntries
@@ -232,12 +246,15 @@ and CfgInfo internal (cfg : CfgTemporaryData) =
         res
 
     member this.IlBytes = cfg.ILBytes
+    member this.SortedBasicBlocks = cfg.SortedBasicBlocks
     member this.SortedOffsets = cfg.SortedOffsets
     member this.Edges = cfg.Edges
+    member this.MethodSize = cfg.MethodSize
     member this.Sinks = sinks
     member this.Calls = calls
     member this.IsLoopEntry offset = loopEntries.Contains offset
-    member internal this.ResolveBasicBlockIndex offset = resolveBasicBlockIndex offset
+    member this.ResolveBasicBlockIndex offset = resolveBasicBlockIndex offset
+    member this.ResolveBasicBlockObject offset = resolveBasicBlockObject offset
     member this.ResolveBasicBlock offset = resolveBasicBlock offset
     member this.IsBasicBlockStart offset = resolveBasicBlock offset = offset
     // Returns dictionary of shortest distances, in terms of basic blocks (1 step = 1 basic block transition)
