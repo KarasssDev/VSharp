@@ -9,15 +9,17 @@ RUN apt-get update && apt-get install -y  \
     cmake \
     clang
 
-# setup workdir and copy sources
+# setup workdir
 WORKDIR /source
-ARG VSHARP_FUZZER_ARCHIVE
-COPY ${VSHARP_FUZZER_ARCHIVE} .
 
 # clone dotnet runtime
 RUN git clone https://github.com/dotnet/runtime.git \
     && cd runtime \
     && git checkout 3a25a7f1cc446b60678ed25c9d829420d6321eba
+
+# copy sources
+ARG VSHARP_FUZZER_ARCHIVE
+COPY ${VSHARP_FUZZER_ARCHIVE} .
 
 # unarchive application sources
 RUN VSHARP_RUNNER_ARCHIVE_NAME="$(find /source -type f -name '*fuzzer*.zip')" \

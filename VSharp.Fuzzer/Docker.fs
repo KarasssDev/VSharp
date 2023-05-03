@@ -15,6 +15,7 @@ type private DockerOptions =
     | Mount of string * string * MountMode
     | EnvVar of string * string
     | User of uint * uint
+    | Port of int * int
 
 let private buildOptions (options: DockerOptions seq) =
     let args = StringBuilder()
@@ -26,6 +27,7 @@ let private buildOptions (options: DockerOptions seq) =
             | ReadWrite -> args.Append $" --mount type=bind,source={source},target={target}" |> ignore
         | EnvVar (name, value) -> args.Append $""" -e {name}="{value}" """ |> ignore
         | User (uid, gid) -> args.Append $" --user {uid}:{gid}" |> ignore
+        | Port(source, target) -> args.Append $" --publish {source}:{target}" |> ignore
     args.ToString ()
 
 let private executeDockerCommand args =
@@ -57,12 +59,14 @@ let private getPipePath (serverName: string) (pipeName: string): string =
 let startFuzzer dllsPath outputPath =
 
     let options =
-        let pipePath = getPipePath "." "FuzzerPipe"
+        //let pipePath = getPipePath "." "FuzzerPipe"
 
         let baseOptions = [
             Mount(dllsPath, dllsPath, Readonly)
             Mount(outputPath, outputPath, ReadWrite)
-            Mount(pipePath, pipePath, ReadWrite)
+            //Mount(pipePath, pipePath, ReadWrite)
+
+            Port(29172, 29172)
 
             EnvVar("CORECLR_PROFILER", "{2800fea6-9667-4b42-a2b6-45dc98e77e9e}")
             EnvVar("CORECLR_ENABLE_PROFILING", "1")

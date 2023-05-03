@@ -4,17 +4,20 @@ open System
 open System.Diagnostics
 open System.IO
 open System.IO.Pipes
+
+open System.Net
 open System.Net.Sockets
 open System.Runtime.InteropServices
 open System.Text
 open System.Threading
+open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 open VSharp
 open VSharp.Fuzzer.Coverage
 open VSharp.Interpreter.IL
 
 
-type ServerMessage =
+type ClientMessage =
     | Kill
     | Fuzz of string * int
     | Setup of string * string
@@ -33,7 +36,7 @@ type ServerMessage =
         | "Setup" -> assert (parts.Length = 3); Setup (parts[1], parts[2])
         | _ -> internalfail $"Unknown client message: {str}"
 
-type ClientMessage =
+type ServerMessage =
     | Statistics of CoverageLocation array
 
     static member serialize msg =
@@ -53,14 +56,19 @@ type ClientMessage =
             Statistics content
         | _  -> internalfail $"Unknown server message: {str}"
 
-type private FuzzerPipe<'a, 'b> (io: Stream, onStart, serialize: 'a -> string, deserialize: string -> 'b) =
-    let reader = new StreamReader(io)
-    let writer = new StreamWriter(io)
+type private FuzzerPipe<'a, 'b> (init: unit -> Task<Stream>, serialize: 'a -> string, deserialize: string -> 'b) =
+
+    let mutable reader = Unchecked.defaultof<StreamReader>
+    let mutable writer = Unchecked.defaultof<StreamWriter>
 
     do
-        Logger.error "try to connect fuzzer"
-        onStart ()
-        Logger.error "fuzzer connected"
+        Logger.error "try to connect"
+        let ioTask = init()
+        ioTask.Wait()
+        let io = ioTask.Result
+        reader <- new StreamReader(io)
+        writer <- new StreamWriter(io)
+        Logger.error "connected"
         writer.AutoFlush <- true
 
     member this.ReadMessage () =
@@ -90,9 +98,17 @@ type private FuzzerPipe<'a, 'b> (io: Stream, onStart, serialize: 'a -> string, d
 
 type FuzzerApplication () =
     let fuzzer = Fuzzer ()
-    let client =
-        let io = new NamedPipeClientStream(".", "FuzzerPipe", PipeDirection.InOut)
-        FuzzerPipe(io, io.Connect, ClientMessage.serialize, ServerMessage.deserialize)
+
+    let server =
+        let init () =
+            task {
+                let server = TcpListener(IPAddress.Any, 29172)
+                server.Start ()
+                let! client = server.AcceptTcpClientAsync () 
+                return client.GetStream () :> Stream
+            }
+        FuzzerPipe (init, ServerMessage.serialize, ClientMessage.deserialize)
+
     let mutable assembly = Unchecked.defaultof<Reflection.Assembly>
     let mutable outputDir = ""
 
@@ -125,7 +141,7 @@ type FuzzerApplication () =
                         let hist = Interop.InstrumenterCalls.getHistory()
                         Logger.error $"count: {hist.Length}"
                         Logger.error $"size: {hist[0].Length}"
-                        do! client.SendMessage (Statistics hist[0])
+                        do! server.SendMessage (Statistics hist[0])
                         test.Serialize filePath
                     | None -> ()
                 })
@@ -136,7 +152,7 @@ type FuzzerApplication () =
             | Kill -> return true
         }
 
-    member this.Start () = client.ReadAll handleRequest
+    member this.Start () = server.ReadAll handleRequest
 
 type FuzzerInteraction (
     cancellationToken: CancellationToken,
@@ -156,9 +172,25 @@ type FuzzerInteraction (
 
     let fuzzerContainer = Docker.startFuzzer dllsPath outputPath
 
-    let server =
-        let io = new NamedPipeServerStream("FuzzerPipe", PipeDirection.InOut)
-        FuzzerPipe (io, io.WaitForConnection, ServerMessage.serialize, ClientMessage.deserialize)
+    let client =
+        let rec connect (tcpClient: TcpClient) =
+            task {
+                try
+                    tcpClient.Connect("localhost", 29172)
+                with
+                    | _ ->
+                        Thread.Sleep(50)
+                        do! connect tcpClient
+            }
+
+        let init () =
+            task {
+                let tcpClient = new TcpClient()
+                do! connect tcpClient
+                return tcpClient.GetStream () :> Stream
+            }
+        FuzzerPipe(init, ClientMessage.serialize, ServerMessage.deserialize)
+
 
     let methods = System.Collections.Generic.Dictionary<int, Method>()
     let toSiliStatistic (loc: CoverageLocation seq) =
@@ -193,17 +225,17 @@ type FuzzerInteraction (
 
     member this.Fuzz (moduleName: string, methodToken: int) =
         Logger.error $"Send to fuzz {methodToken}"
-        server.SendMessage (Fuzz (moduleName, methodToken))
+        client.SendMessage (Fuzz (moduleName, methodToken))
 
     member this.WaitStatistics ()  =
         async {
-            do! server.SendMessage Kill
+            do! client.SendMessage Kill
             Logger.error "Kill message sent to fuzzer"
-            do! server.ReadAll handleRequest
+            do! client.ReadAll handleRequest
             do! fuzzerContainer.WaitForExitAsync () |> Async.AwaitTask
             Logger.error "Fuzzer stopped"
         }
 
-    member this.Setup (assemblyPath, outputDir) =  Setup (assemblyPath, outputDir) |> server.SendMessage
+    member this.Setup (assemblyPath, outputDir) =  Setup (assemblyPath, outputDir) |> client.SendMessage
 
     // member this.Kill = killFuzzer
