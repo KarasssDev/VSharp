@@ -1,8 +1,10 @@
 namespace VSharp.Interpreter.IL
 
 open System
+open System.IO
 open System.Reflection
 open System.Collections.Generic
+open System.Threading
 open System.Threading.Tasks
 open FSharpx.Collections
 
@@ -10,6 +12,7 @@ open VSharp
 open VSharp.Concolic
 open VSharp.Core
 open CilStateOperations
+open VSharp.Fuzzer
 open VSharp.Interpreter.IL
 open VSharp.Solver
 
@@ -237,7 +240,7 @@ type public SILI(options : SiliOptions) =
                     !!(IsNullReference this) |> AddConstraint initialState
                     Some this
             let parameters = SILI.AllocateByRefParameters initialState method
-            ILInterpreter.InitFunctionFrame initialState method this (Some parameters)
+            Memory.InitFunctionFrame initialState method this (Some parameters)
             let cilStates = ILInterpreter.CheckDisallowNullAssumptions cilState method false
             assert (List.length cilStates = 1)
             let [cilState] = cilStates
@@ -260,7 +263,7 @@ type public SILI(options : SiliOptions) =
                 let argsNumber = MakeNumber mainArguments.Length
                 Memory.AllocateConcreteVectorArray state argsNumber stringType args
             let arguments = Option.map (argsToState >> Some >> List.singleton) optionArgs
-            ILInterpreter.InitFunctionFrame state method None arguments
+            Memory.InitFunctionFrame state method None arguments
             if Option.isNone optionArgs then
                 // NOTE: if args are symbolic, constraint 'args != null' is added
                 let parameters = method.Parameters
@@ -274,7 +277,7 @@ type public SILI(options : SiliOptions) =
                     | StateModel modelState -> modelState
                     | _ -> __unreachable__()
                 let argsForModel = Memory.AllocateVectorArray modelState (MakeNumber 0) typeof<String>
-                Memory.WriteLocalVariable modelState (ParameterKey argsParameter) argsForModel
+                Memory.WriteStackLocation modelState (ParameterKey argsParameter) argsForModel
             Memory.InitializeStaticMembers state method.DeclaringType
             let initialState = makeInitialState method state
             [initialState]
@@ -420,7 +423,23 @@ type public SILI(options : SiliOptions) =
             reportFinished <- wrapOnTest onFinished
             reportError <- wrapOnError onException
             try
+                let initializeAndStartFuzzer cancellationToken () =
+                    async {
+                        let assemblyPath = (Seq.head isolated).Module.Assembly.Location
+                        let fuzzer = FuzzerInteraction(
+                            cancellationToken,
+                            statistics.SetBasicBlocksAsCoveredByTest "fuzzer",
+                            Directory.GetParent(assemblyPath).FullName,
+                            options.outputDirectory.FullName
+                        )
+                        do! fuzzer.Setup(assemblyPath, options.outputDirectory.FullName)
+                        for m in isolated do
+                            do! fuzzer.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
+                        do! fuzzer.WaitStatistics ()
+                    } |> Async.RunSynchronously
+
                 let initializeAndStart () =
+                    Logger.error "SE started"
                     let trySubstituteTypeParameters method =
                         let emptyState = Memory.EmptyState()
                         (Option.defaultValue method (x.TrySubstituteTypeParameters emptyState method), emptyState)
@@ -446,10 +465,19 @@ type public SILI(options : SiliOptions) =
                     statistics.SetStatesCountGetter(fun () -> searcher.StatesCount)
                     if not initialStates.IsEmpty then
                         x.AnswerPobs initialStates
+                    Logger.error "SE finished"
+                let fuzzerTask =
+                    let tokSource =
+                        if hasTimeout then
+                            new CancellationTokenSource(int(timeout * 1.5))
+                        else new CancellationTokenSource()
+                    let tok = tokSource.Token
+                    Task.Run(initializeAndStartFuzzer tok, tok)
                 let explorationTask = Task.Run(initializeAndStart)
+                let tasks = [|explorationTask; fuzzerTask|]
                 let finished =
-                    if hasTimeout then explorationTask.Wait(int (timeout * 1.5))
-                    else explorationTask.Wait(); true
+                    if hasTimeout then Task.WaitAll(tasks, int(timeout * 1.5))
+                    else Task.WaitAll(tasks); true
                 if not finished then Logger.warning "Execution was cancelled due to timeout"
             with
             | :? AggregateException as e ->
@@ -461,6 +489,7 @@ type public SILI(options : SiliOptions) =
                 statistics.ExplorationFinished()
                 API.Restore()
                 searcher.Reset()
+                Logger.error "finished"
             with e -> reportCrash e
 
     member x.Stop() = isStopped <- true
