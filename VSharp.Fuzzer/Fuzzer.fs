@@ -117,35 +117,6 @@ type Fuzzer ()  =
         let finished = fuzzOnce.Wait(this.Config.Timeout)
         if finished then fuzzOnce.Result else Logger.error "Time limit"; None
 
-//    pc -- Empty
-//    evaluationStack -- Result (in case of generation), Empty (in case of seed)
-//    stack -- First frame = method
-//    stackBuffers -- Empty
-//    classFields -- Empty
-//    arrays -- Empty
-//    lengths -- Empty
-//    lowerBounds -- Empty
-//    staticFields -- Empty
-//    boxedLocations -- Empty
-//    initializedTypes -- Empty
-//    concreteMemory -- All heap objects
-//    allocatedTypes -- All heap objects
-//    typeVariables -- Empty
-//    delegates -- Empty (?)
-//    currentTime -- startingTime
-//    startingTime -- default
-//    exceptionsRegister -- Empty (in case of Returned), HeapRef exn (in case of Thrown)
-//    model -- Empty StateModel (in case of generation), Filled StateModel? (in case of seed)
-//    complete -- true?
-//    typeMocks -- created mocks
-
-//    member private this.FillModel (args: array<obj * Type>) =
-//        let model = Memory.EmptyModel method (typeModel.CreateEmpty())
-//        match model with
-//        | StateModel (state, _) ->
-//            state
-//        | _ -> __unreachable__()
-
     member private this.FillState (args : array<obj * Type>) =
         // Creating state
         let state = Memory.EmptyState()
@@ -171,11 +142,6 @@ type Fuzzer ()  =
         // Returning filled state
         state
 
-    member private this.FuzzingResultToInitialState (result: FuzzingResult) =
-        match result with
-        | Returned (args, _)
-        | Thrown(args, _) -> this.FillState args
-
     member private this.FuzzingResultToCompletedState (result: FuzzingResult) =
         match result with
         | Returned (args, returned) ->
@@ -193,16 +159,6 @@ type Fuzzer ()  =
             // TODO: check if exception was thrown by user or by runtime
             state.exceptionsRegister <- Unhandled(exnRef, false)
             state
-
-    member this.FuzzWithState state seed =
-        let info = this.GetInfo (Some state)
-        let rndGenerator = Random(seed)
-        [0..this.Config.MaxTest]
-        |> List.map (fun _ -> Random(rndGenerator.NextInt64() |> int))
-        |> List.map (this.FuzzOnceWithTimeout info)
-        |> List.choose id
-        |> List.map this.FuzzingResultToCompletedState
-        |> Seq.ofList
 
     member this.Fuzz target =
         method <- target
