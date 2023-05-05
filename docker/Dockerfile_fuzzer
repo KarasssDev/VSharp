@@ -1,0 +1,37 @@
+FROM ubuntu:22.04 AS builder
+
+#install dependecy
+RUN apt-get update && apt-get install -y  \
+    dotnet6  \
+    ca-certificates  \
+    git  \
+    unzip \
+    cmake \
+    clang
+
+# setup workdir
+WORKDIR /source
+
+# clone dotnet runtime
+RUN git clone https://github.com/dotnet/runtime.git \
+    && cd runtime \
+    && git checkout 3a25a7f1cc446b60678ed25c9d829420d6321eba
+
+# copy sources
+ARG VSHARP_FUZZER_ARCHIVE
+COPY ${VSHARP_FUZZER_ARCHIVE} .
+
+# unarchive application sources
+RUN VSHARP_RUNNER_ARCHIVE_NAME="$(find /source -type f -name '*fuzzer*.zip')" \
+	&& unzip ${VSHARP_RUNNER_ARCHIVE_NAME} \
+	&& rm ${VSHARP_RUNNER_ARCHIVE_NAME}
+
+# publish fuzzer application
+RUN dotnet publish -c Release -o /app
+
+FROM ubuntu/dotnet-runtime:6.0-22.04_beta
+
+WORKDIR /app
+COPY --from=builder /app ./
+
+ENTRYPOINT ["dotnet", "/app/VSharp.Fuzzer.dll"]
