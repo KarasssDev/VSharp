@@ -8,13 +8,20 @@ open VSharp
 open VSharp.Interpreter.IL
 open VSharp.Reflection
 
-[<EntryPoint>]
-let main _ =
-    //while Debugger.IsAttached |> not do ()
 
-    Logger.error $"PID: {Process.GetCurrentProcess().Id}"
-    Logger.error "Fuzzer started!"
-    let app = FuzzerApplication ()
-    Logger.error "App created"
+let setupApplication (argv: string array) =
+    if (argv.Length < 1) then
+        internalfail "Missing log file folder path"
+    let outputDir = argv[0]
+    Fuzzer.Logger.setupLogger outputDir
+    if (argv.Length = 2) then
+        match argv[1] with
+        | "--debug" -> Fuzzer.Logger.setDebugVerbosity ()
+        | _ -> internalfail $"Unexpected second arg {argv[1]}"
+    FuzzerApplication outputDir
+
+[<EntryPoint>]
+let main argv =
+    let app = setupApplication argv
     app.Start() |> Async.RunSynchronously
     0

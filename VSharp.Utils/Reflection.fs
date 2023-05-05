@@ -71,9 +71,17 @@ module public Reflection =
         m.ResolveMethod(token)
 
     let resolveMethodBaseFromAssembly (assembly: Assembly) (moduleName: string) (token: int32) =
+        Logger.error $"Try find {moduleName}"
+        let info = $"""
+{assembly.Location}
+{assembly.FullName}
+"""
+        Logger.error $"{info}"
+        for mm in assembly.GetModules() do
+                Logger.error $"\n{mm.Name}\n{mm.FullyQualifiedName}"
         let m =
             assembly.Modules
-            |> Seq.find (fun m -> m.FullyQualifiedName = moduleName)
+            |> Seq.find (fun m -> Logger.error $"{m.FullyQualifiedName}"; m.FullyQualifiedName = moduleName)
         m.ResolveMethod(token)
 
     let private retrieveMethodsGenerics (method : MethodBase) =

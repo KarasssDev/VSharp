@@ -11,13 +11,19 @@ type private MountMode =
     | Readonly
     | ReadWrite
 
-type private DockerOptions =
+type private DockerRunOptions =
     | Mount of string * string * MountMode
     | EnvVar of string * string
     | User of uint * uint
     | Port of int * int
+    | RemoveAfterStop
+    | Name of string
 
-let private buildOptions (options: DockerOptions seq) =
+type private DockerCommand =
+    | Run of DockerRunOptions seq * string * string seq
+    | Stop of string
+
+let private buildRunOptions (options: DockerRunOptions seq) =
     let args = StringBuilder()
     for option in options do
         match option with
@@ -28,9 +34,12 @@ let private buildOptions (options: DockerOptions seq) =
         | EnvVar (name, value) -> args.Append $""" -e {name}="{value}" """ |> ignore
         | User (uid, gid) -> args.Append $" --user {uid}:{gid}" |> ignore
         | Port(source, target) -> args.Append $" --publish {source}:{target}" |> ignore
+        | RemoveAfterStop -> args.Append " --rm" |> ignore
+        | Name containerName -> args.Append $" --name {containerName}" |> ignore
+
     args.ToString ()
 
-let private executeDockerCommand args =
+let private runDockerProcess args  =
     Logger.error $"Args: {args}"
     let info = ProcessStartInfo()
     info.WorkingDirectory <- Directory.GetCurrentDirectory()
@@ -41,37 +50,53 @@ let private executeDockerCommand args =
     info.RedirectStandardError <- false
     Process.Start info
 
-let private runContainer (name: string) (options: DockerOptions seq) =
-    let options = buildOptions options
-    $" run {options} {name} " |> executeDockerCommand
+let private executeDockerCommand command =
+    let args = 
+        match command with
+        | Run (runOptions, imageName, appArgs) ->
+            let dockerOptions = buildRunOptions runOptions
+            let appArgs = String.concat " " appArgs
+            $"run {dockerOptions} {imageName} {appArgs}"
+        | Stop containerName -> $"stop {containerName}"
+    runDockerProcess args
 
-let private stopContainer (name: string) =
-    $" stop {name}" |> executeDockerCommand
-    
-let private fuzzerContainerName = "karasss/fuzzer:latest"
+let private fuzzerImageName = "karasss/fuzzer:latest"
+let private fuzzerContainerName = "vsharp-fuzzer"
+let fuzzerContainerPort = 29172
+let isSupportedArchForFuzzer () =
+    let arch = Architecture ()
+    match arch with
+    | Architecture.X64
+    | Architecture.X86 
+    | Architecture.Arm 
+    | Architecture.Arm64 -> true
+    | Architecture.Wasm
+    | Architecture.S390x -> false
+    | _ -> __unreachable__ ()
 
-let private getPipePath (serverName: string) (pipeName: string): string =
-    let pipeStreamType = typeof<System.IO.Pipes.PipeStream>
-    let getPathMethod = pipeStreamType.GetMethod ("GetPipePath", System.Reflection.BindingFlags.NonPublic ||| System.Reflection.BindingFlags.Static)
-    let result = getPathMethod.Invoke (null, [| serverName; pipeName |])
-    result.ToString ()
-
-let startFuzzer dllsPath outputPath =
+let startFuzzer outputPath dllPaths =
 
     let options =
-        //let pipePath = getPipePath "." "FuzzerPipe"
 
-        let baseOptions = [
-            Mount(dllsPath, dllsPath, Readonly)
-            Mount(outputPath, outputPath, ReadWrite)
-            //Mount(pipePath, pipePath, ReadWrite)
-
-            Port(29172, 29172)
-
+        let instrumenterSetupOptions = [
             EnvVar("CORECLR_PROFILER", "{2800fea6-9667-4b42-a2b6-45dc98e77e9e}")
             EnvVar("CORECLR_ENABLE_PROFILING", "1")
             EnvVar("CORECLR_PROFILER_PATH", "/app/libvsharpConcolic.so")
         ]
+
+        let mountDllPathsOptions =
+            dllPaths |> Seq.toList |> List.map (fun path -> Mount(path, path, Readonly))
+
+        let baseOptions = List.concat [
+                instrumenterSetupOptions
+                mountDllPathsOptions
+                [
+                    Mount(outputPath, outputPath, ReadWrite)
+                    Port(fuzzerContainerPort, fuzzerContainerPort)
+                    RemoveAfterStop
+                    Name fuzzerContainerName
+                ]
+            ]
 
         let linuxOptions = [
             Mount("/etc/passwd", "/etc/passwd", Readonly) 
@@ -82,6 +107,13 @@ let startFuzzer dllsPath outputPath =
         if (RuntimeInformation.IsOSPlatform OSPlatform.Linux) then List.concat [baseOptions; linuxOptions]
         else baseOptions
 
-    runContainer fuzzerContainerName options
+    let appArgs = [
+        outputPath
+        #if DEBUG
+        "--debug"
+        #endif
+    ]
 
-let stopFuzzer () = stopContainer fuzzerContainerName
+    Run (options, fuzzerImageName, appArgs) |> executeDockerCommand
+
+let stopFuzzer () = Stop fuzzerContainerName |> executeDockerCommand
