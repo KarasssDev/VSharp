@@ -12,6 +12,7 @@
         <Compile Include="Fuzzer.fs" />
         <Compile Include="Interop.fs" />
         <Compile Include="Docker.fs" />
+        <Compile Include="FuzzerMessage.fs" />
         <Compile Include="FuzzerInteraction.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>

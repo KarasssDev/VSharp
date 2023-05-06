@@ -427,14 +427,12 @@ type public SILI(options : SiliOptions) =
             try
                 let initializeAndStartFuzzer cancellationToken () =
                     async {
-                        let assemblyPath = (Seq.head isolated).Module.Assembly.Location
                         let fuzzer = FuzzerInteraction(
                             cancellationToken,
                             statistics.SetBasicBlocksAsCoveredByTest "fuzzer",
-                            Directory.GetParent(assemblyPath).FullName,
                             options.outputDirectory.FullName
                         )
-                        do! fuzzer.Setup(assemblyPath, options.outputDirectory.FullName)
+                        do! fuzzer.Setup(options.outputDirectory.FullName, (Seq.head isolated).Module.Assembly)
                         for m in isolated do
                             do! fuzzer.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
                         do! fuzzer.WaitStatistics ()
