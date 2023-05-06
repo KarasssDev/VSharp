@@ -25,21 +25,21 @@
     </ItemGroup>
 
     <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('Linux')) ">
-        <Content Include="..\VSharp.CoverageRunner\cmake-build-debug\libvsharpConcolic.so">
+        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-debug\libvsharpCoverage.so">
             <Link>libvsharpConcolic.so</Link>
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
 
     <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('OSX')) ">
-        <Content Include="..\VSharp.CoverageRunner\cmake-build-debug\libvsharpConcolic.dylib">
+        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-debug\libvsharpCoverage.dylib">
             <Link>libvsharpConcolic.dylib</Link>
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
 
     <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('Windows')) ">
-        <Content Include="..\VSharp.CoverageRunner\build\libvsharpConcolic.dll">
+        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-debug\libvsharpCoverage.dll">
             <Link>libvsharpConcolic.dll</Link>
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
