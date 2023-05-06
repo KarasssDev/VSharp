@@ -5,7 +5,6 @@ open System.Runtime.InteropServices
 open System.Text
 open Microsoft.FSharp.NativeInterop
 
-open VSharp.Fuzzer.Coverage
 open VSharp
 
 
@@ -21,7 +20,7 @@ extern void private GetHistory(nativeint size, nativeint data)
 extern IntPtr private getpwnam(string name)
 
 
-module private Deserialization = 
+module private Deserialization =
     let mutable private dataOffset = 0
 
     let resetOffset () = dataOffset <- 0
@@ -29,12 +28,12 @@ module private Deserialization =
     let private increaseOffset i =
         dataOffset <- dataOffset + i
 
-    let readInt32 data = 
+    let readInt32 data =
         let result = BitConverter.ToInt32(data, dataOffset)
         increaseOffset sizeof<int32>
         result
 
-    let readUInt32 data = 
+    let readUInt32 data =
         let result = BitConverter.ToUInt32(data, dataOffset)
         increaseOffset sizeof<uint32>
         result
@@ -49,7 +48,7 @@ module private Deserialization =
 
     let deserializeMethodData data =
         let methodToken = readUInt32 data
-        let assemblyName = readString data 
+        let assemblyName = readString data
         let moduleName = readString data
         {| MethodToken = methodToken; AssemblyName = assemblyName; ModuleName = moduleName |}
 
@@ -100,7 +99,7 @@ module LinuxCalls =
         let username = Environment.GetEnvironmentVariable("USER")
         getUserInfo username
 
-module InstrumenterCalls = 
+module InstrumenterCalls =
     let getHistory () =
         let sizePtr = NativePtr.stackalloc<uint> 1
         let dataPtrPtr = NativePtr.stackalloc<nativeint> 1

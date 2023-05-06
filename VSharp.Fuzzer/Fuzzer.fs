@@ -36,44 +36,48 @@ type Fuzzer ()  =
     member val private Generator = Generator.Generator.generate with get
 
     member private this.SolveGenerics (method: IMethod) (moduleBuilder: ModuleBuilder) (model: model option): MethodBase option =
-        let getConcreteType =
-            function
-            | ConcreteType t -> t
-            | MockType mock ->
-                let getMock () =
-                    let freshMock = Mocking.Type(mock.Name)
-                    for t in mock.SuperTypes do
-                        freshMock.AddSuperType t
-                    for m in mock.MethodMocks do
-                        let rnd = Random(Int32.MaxValue)
-                        let genClause () = this.Generator rnd Generator.Config.defaultGeneratorConfig m.BaseMethod.ReturnType
-                        let clauses = Array.zeroCreate this.Config.MaxClauses |> Array.map genClause
-                        freshMock.AddMethod(m.BaseMethod, clauses)
-                    freshMock.Build moduleBuilder
-                typeMocks.Add (mock.SuperTypes |> List.ofSeq, mock)
-                Dict.getValueOrUpdate typeMocksCache mock getMock
+        // let typeModel =
+        //     match model with
+        //     | Some (StateModel (_, typeModel)) -> typeModel
+        //     | None -> typeModel.CreateEmpty()
+        //     | _ -> __unreachable__()
+        //
+        // let getConcreteType =
+        //     function
+        //     | ConcreteType t -> t
+        //     | MockType mock ->
+        //         let getMock () =
+        //             let freshMock = Mocking.Type(mock.Name)
+        //             for t in mock.SuperTypes do
+        //                 freshMock.AddSuperType t
+        //             for m in typeModel.typeMocks do
+        //                 let rnd = Random(Int32.MaxValue)
+        //                 let genClause () = this.Generator rnd Generator.Config.defaultGeneratorConfig m.BaseMethod.ReturnType
+        //                 let clauses = Array.zeroCreate this.Config.MaxClauses |> Array.map genClause
+        //                 freshMock.AddMethod(m.BaseMethod, clauses)
+        //             freshMock.Build moduleBuilder
+        //         typeMocks.Add (mock.SuperTypes |> List.ofSeq, mock)
+        //         Dict.getValueOrUpdate typeMocksCache mock getMock
+        //
+        //
+        //
+        // try
+        //     // Fix generics
+        //     match SolveGenericMethodParameters typeModel method with
+        //     | Some(classParams, methodParams) ->
+        //         let classParams = classParams |> Array.map getConcreteType
+        //         let methodParams = methodParams |> Array.map getConcreteType
+        //         if classParams.Length = methodBase.DeclaringType.GetGenericArguments().Length &&
+        //             (methodBase.IsConstructor || methodParams.Length = methodBase.GetGenericArguments().Length) then
+        //             let declaringType = Reflection.concretizeTypeParameters methodBase.DeclaringType classParams
+        //             let methodBase = Reflection.concretizeMethodParameters declaringType methodBase methodParams
+        //             Some methodBase
+        //         else
+        //             None
+        //     | _ -> None
+        // with :? InsufficientInformationException -> None
+        None
 
-        let typeModel =
-            match model with
-            | Some (StateModel (_, typeModel)) -> typeModel
-            | None -> typeModel.CreateEmpty()
-            | _ -> __unreachable__()
-
-        try
-            // Fix generics
-            match SolveGenericMethodParameters typeModel method with
-            | Some(classParams, methodParams) ->
-                let classParams = classParams |> Array.map getConcreteType
-                let methodParams = methodParams |> Array.map getConcreteType
-                if classParams.Length = methodBase.DeclaringType.GetGenericArguments().Length &&
-                    (methodBase.IsConstructor || methodParams.Length = methodBase.GetGenericArguments().Length) then
-                    let declaringType = Reflection.concretizeTypeParameters methodBase.DeclaringType classParams
-                    let methodBase = Reflection.concretizeMethodParameters declaringType methodBase methodParams
-                    Some methodBase
-                else
-                    None
-            | _ -> None
-        with :? InsufficientInformationException -> None
 
     member private this.GetInfo (state: state option) =
         let model = Option.map (fun s -> s.model) state
@@ -132,7 +136,11 @@ type Fuzzer ()  =
 
         Memory.InitFunctionFrame state method this (Some parameters)
         // Filling used type mocks
-        for mock in typeMocks do state.typeMocks.Add mock
+        let typeModel =
+            match state.model with
+            | StateModel(_, typeModel) -> typeModel
+
+        for mock in typeMocks do typeModel.typeMocks.Add mock
 
         match state.model with
         | StateModel (model, _) ->

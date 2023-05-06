@@ -13,7 +13,6 @@ open System.Threading
 open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 open VSharp
-open VSharp.Fuzzer.Coverage
 open VSharp.Interpreter.IL
 
 
@@ -104,7 +103,7 @@ type FuzzerApplication () =
             task {
                 let server = TcpListener(IPAddress.Any, 29172)
                 server.Start ()
-                let! client = server.AcceptTcpClientAsync () 
+                let! client = server.AcceptTcpClientAsync ()
                 return client.GetStream () :> Stream
             }
         FuzzerPipe (init, ServerMessage.serialize, ClientMessage.deserialize)
@@ -209,7 +208,7 @@ type FuzzerInteraction (
                 offset = LanguagePrimitives.Int32WithMeasure l.offset
                 method = getMethod l
             }
-            
+
         loc |> Seq.map toCodeLocation
 
     let handleRequest msg =
