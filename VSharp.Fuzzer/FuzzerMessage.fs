@@ -103,8 +103,10 @@ type ClientMessage =
                         return None
                 }
 
-            if result.IsNone then internalfail $"Unexpected message type byte {messageType}"
-            return result.Value
+            if result.IsNone && int messageType[0] <> 0 then
+                internalfail $"Unexpected message type byte {messageType[0]}"
+
+            return result
         }
 
 let private statisticsByte = [| byte 1 |]
@@ -138,6 +140,8 @@ type ServerMessage =
                         return None
                 }
 
-            if result.IsNone then internalfail $"Unexpected message type byte {messageType}"
-            return result.Value
+            if result.IsNone && int messageType[0] <> 0 then
+                internalfail $"Unexpected message type byte {messageType[0]}"
+
+            return result
         }

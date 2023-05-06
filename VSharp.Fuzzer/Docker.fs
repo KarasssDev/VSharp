@@ -46,8 +46,8 @@ let private runDockerProcess args  =
     info.FileName <- "docker"
     info.Arguments <- args
     info.UseShellExecute <- false
-    info.RedirectStandardOutput <- false
-    info.RedirectStandardError <- false
+    info.RedirectStandardOutput <- true
+    info.RedirectStandardError <- true
     Process.Start info
 
 let private executeDockerCommand command =

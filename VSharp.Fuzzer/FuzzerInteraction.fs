@@ -20,7 +20,7 @@ open VSharp.Interpreter.IL
 type private FuzzerCommunicator<'a, 'b> (
     init: unit -> Task<Stream>,
     serialize: 'a -> byte array,
-    deserialize: Stream -> Async<'b>
+    deserialize: Stream -> Async<'b option>
     ) =
 
     let mutable stream = Unchecked.defaultof<Stream>
@@ -35,19 +35,22 @@ type private FuzzerCommunicator<'a, 'b> (
 
     member this.ReadMessage () = deserialize stream
     member this.SendMessage msg =
-        let result = stream.WriteAsync (serialize msg)
-        result.AsTask () |> Async.AwaitTask
+        async {
+            let! result = stream.WriteAsync(serialize msg).AsTask() |> Async.AwaitTask
+            do! stream.FlushAsync () |> Async.AwaitTask
+            return result
+        }
 
     member this.ReadAll onEach =
         async {
             let mutable completed = false
             while not completed do
-                if not stream.CanRead then
-                    completed <- true
-                else
-                    let! message = this.ReadMessage ()
-                    let! stop =  onEach message
+                let! message = this.ReadMessage ()
+                match message with
+                | Some v -> 
+                    let! stop = onEach v
                     completed <- stop
+                | None -> completed <- true
         }
     member this.SendEnd () = stream.Close ()
 
@@ -78,6 +81,7 @@ type FuzzerApplication () =
             | Setup(newOutputDir, newAssembly) ->
                 assembly <- newAssembly
                 outputDir <- newOutputDir
+                //new StreamWriter (File.OpenWrite ($"{outputDir}{Path.DirectorySeparatorChar}fuzzer.log")) |> Logger.configureWriter
                 return false
             | Fuzz (moduleName, methodToken) ->
                 let methodBase = Reflection.resolveMethodBaseFromAssembly assembly moduleName methodToken
