@@ -9,7 +9,10 @@ open VSharp
 let private readNBytes (stream: Stream) n =
     async {
         let buffer = Array.zeroCreate<byte> n
-        let! _ = stream.ReadAsync (buffer, 0, n) |> Async.AwaitTask
+        let mutable offset = 0
+        while offset <> n do
+            let! count = stream.ReadAsync (buffer, offset, n) |> Async.AwaitTask
+            offset <- offset + count
         return buffer
     }
 
@@ -126,7 +129,6 @@ type ServerMessage =
     static member deserialize (stream: Stream) =
         async {
             let! messageType = readNBytes stream 1
-
             let! result =
                 async {
                     if messageType = statisticsByte then

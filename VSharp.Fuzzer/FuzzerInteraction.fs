@@ -1,44 +1,36 @@
 namespace VSharp.Fuzzer
 
 open System
-open System.Diagnostics
 open System.IO
-open System.IO.Pipes
-
 open System.Net
 open System.Net.Sockets
-open System.Runtime.InteropServices
-open System.Text
 open System.Threading
 open System.Threading.Tasks
 open Microsoft.FSharp.Control
-open Microsoft.FSharp.NativeInterop
 open VSharp
 open VSharp.Fuzzer.FuzzerMessage
 open VSharp.Interpreter.IL
 
 type private FuzzerCommunicator<'a, 'b> (
-    init: unit -> Task<Stream>,
+    init: unit -> NetworkStream,
     serialize: 'a -> byte array,
     deserialize: Stream -> Async<'b option>
     ) =
 
-    let mutable stream = Unchecked.defaultof<Stream>
+    let mutable stream = Unchecked.defaultof<NetworkStream>
 
     do
         Logger.error "try to connect"
-        let ioTask = init()
-        ioTask.Wait()
-        stream <- ioTask.Result
+        stream <- init ()
         Logger.error "connected"
 
 
-    member this.ReadMessage () = deserialize stream
+    member this.ReadMessage () = stream :> Stream |> deserialize
+
     member this.SendMessage msg =
         async {
-            let! result = stream.WriteAsync(serialize msg).AsTask() |> Async.AwaitTask
+            do! stream.WriteAsync(serialize msg).AsTask() |> Async.AwaitTask
             do! stream.FlushAsync () |> Async.AwaitTask
-            return result
         }
 
     member this.ReadAll onEach =
@@ -59,12 +51,11 @@ type FuzzerApplication (outputDir) =
 
     let server =
         let init () =
-            task {
-                let server = TcpListener(IPAddress.Any, Docker.fuzzerContainerPort)
-                server.Start ()
-                let! client = server.AcceptTcpClientAsync ()
-                return client.GetStream () :> Stream
-            }
+            let server = TcpListener(IPAddress.Any, Docker.fuzzerContainerPort)
+            server.Start ()
+            let client = server.AcceptTcpClient ()
+            client.GetStream()
+
         FuzzerCommunicator (init, ServerMessage.serialize, ClientMessage.deserialize)
 
     let mutable assembly = Unchecked.defaultof<Reflection.Assembly>
@@ -128,21 +119,18 @@ type FuzzerInteraction (
 
     let client =
         let rec connect (tcpClient: TcpClient) =
-            task {
-                try
-                    tcpClient.Connect("localhost", Docker.fuzzerContainerPort)
-                with
-                    | _ ->
-                        Thread.Sleep(50)
-                        do! connect tcpClient
-            }
+            try
+                tcpClient.Connect("localhost", Docker.fuzzerContainerPort)
+            with
+                | _ ->
+                    Thread.Sleep(10)
+                    connect tcpClient
 
         let init () =
-            task {
-                let tcpClient = new TcpClient()
-                do! connect tcpClient
-                return tcpClient.GetStream () :> Stream
-            }
+            let tcpClient = new TcpClient()
+            connect tcpClient
+            tcpClient.GetStream ()
+            
         FuzzerCommunicator(init, ClientMessage.serialize, ServerMessage.deserialize)
 
 
