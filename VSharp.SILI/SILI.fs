@@ -432,7 +432,7 @@ type public SILI(options : SiliOptions) =
                             statistics.SetBasicBlocksAsCoveredByTest "fuzzer",
                             options.outputDirectory.FullName
                         )
-                        do! fuzzer.Setup(options.outputDirectory.FullName, (Seq.head isolated).Module.Assembly)
+                        do! fuzzer.Setup (Seq.head isolated).Module.Assembly
                         for m in isolated do
                             do! fuzzer.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
                         do! fuzzer.WaitStatistics ()

@@ -56,7 +56,7 @@ let private returnAssemblyByte = [| byte 4 |]
 type ClientMessage =
     | Kill
     | Fuzz of string * int
-    | Setup of string * System.Reflection.Assembly
+    | Setup of System.Reflection.Assembly
     | ReturnAssembly of System.Reflection.Assembly
 
     static member serialize msg =
@@ -68,10 +68,9 @@ type ClientMessage =
                 serializeString moduleName
                 serializeInt methodToken
             ]
-        | Setup (outputDir, assembly) ->
+        | Setup assembly ->
             Array.concat [
                 setupOutputDirByte
-                serializeString outputDir
                 serializeAssembly assembly
             ]
         | ReturnAssembly assembly ->
@@ -93,9 +92,8 @@ type ClientMessage =
                         let! methodToken = deserializeInt stream
                         return Fuzz (moduleName, methodToken) |> Some
                     elif messageType = setupOutputDirByte then
-                        let! outputDir = deserializeString stream
                         let! assembly = deserializeAssembly stream
-                        return Setup (outputDir, assembly) |> Some
+                        return Setup assembly |> Some
                     elif messageType = returnAssemblyByte then
                         let! assembly = deserializeAssembly stream
                         return ReturnAssembly assembly |> Some

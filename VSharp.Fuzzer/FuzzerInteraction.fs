@@ -54,7 +54,7 @@ type private FuzzerCommunicator<'a, 'b> (
         }
     member this.SendEnd () = stream.Close ()
 
-type FuzzerApplication () =
+type FuzzerApplication (outputDir) =
     let fuzzer = Fuzzer ()
 
     let server =
@@ -68,7 +68,6 @@ type FuzzerApplication () =
         FuzzerCommunicator (init, ServerMessage.serialize, ClientMessage.deserialize)
 
     let mutable assembly = Unchecked.defaultof<Reflection.Assembly>
-    let mutable outputDir = ""
 
     let mutable freeId = -1
     let nextId () =
@@ -78,10 +77,8 @@ type FuzzerApplication () =
     let handleRequest command =
         async {
             match command with
-            | Setup(newOutputDir, newAssembly) ->
+            | Setup newAssembly ->
                 assembly <- newAssembly
-                outputDir <- newOutputDir
-                //new StreamWriter (File.OpenWrite ($"{outputDir}{Path.DirectorySeparatorChar}fuzzer.log")) |> Logger.configureWriter
                 return false
             | Fuzz (moduleName, methodToken) ->
                 let methodBase = Reflection.resolveMethodBaseFromAssembly assembly moduleName methodToken
@@ -194,6 +191,6 @@ type FuzzerInteraction (
             Logger.error "Fuzzer stopped"
         }
 
-    member this.Setup (outputDir, assembly) = Setup (outputDir, assembly) |> client.SendMessage
+    member this.Setup assembly = Setup assembly |> client.SendMessage
 
 

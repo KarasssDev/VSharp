@@ -20,7 +20,7 @@ type private DockerRunOptions =
     | Name of string
 
 type private DockerCommand =
-    | Run of DockerRunOptions seq * string
+    | Run of DockerRunOptions seq * string * string seq
     | Stop of string
 
 let private buildRunOptions (options: DockerRunOptions seq) =
@@ -46,14 +46,17 @@ let private runDockerProcess args  =
     info.FileName <- "docker"
     info.Arguments <- args
     info.UseShellExecute <- false
-    info.RedirectStandardOutput <- true
-    info.RedirectStandardError <- true
+    info.RedirectStandardOutput <- false
+    info.RedirectStandardError <- false
     Process.Start info
 
 let private executeDockerCommand command =
     let args = 
         match command with
-        | Run (runOptions, imageName) -> $"run {buildRunOptions runOptions} {imageName}"
+        | Run (runOptions, imageName, appArgs) ->
+            let dockerOptions = buildRunOptions runOptions
+            let appArgs = String.concat " " appArgs
+            $"run {dockerOptions} {imageName} {appArgs}"
         | Stop containerName -> $"stop {containerName}"
     runDockerProcess args
 
@@ -96,6 +99,10 @@ let startFuzzer outputPath =
         if (RuntimeInformation.IsOSPlatform OSPlatform.Linux) then List.concat [baseOptions; linuxOptions]
         else baseOptions
 
-    Run (options, fuzzerImageName) |> executeDockerCommand
+    let appArgs = [
+        outputPath
+    ]
+
+    Run (options, fuzzerImageName, appArgs) |> executeDockerCommand
 
 let stopFuzzer () = Stop fuzzerContainerName |> executeDockerCommand
