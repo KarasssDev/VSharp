@@ -9,10 +9,13 @@ open VSharp
 let private readNBytes (stream: Stream) n =
     async {
         let buffer = Array.zeroCreate<byte> n
-        let mutable offset = 0
-        while offset <> n do
-            let! count = stream.ReadAsync (buffer, offset, n) |> Async.AwaitTask
-            offset <- offset + count
+        let mutable alreadyReadCount = 0
+        while alreadyReadCount <> n do
+            let! count = stream.ReadAsync (buffer, alreadyReadCount, n - alreadyReadCount) |> Async.AwaitTask
+            Logger.error $"readNBytes n: {n}"
+            Logger.error $"readNBytes offset: {count}"
+            Logger.error $"readNBytes count: {count}"
+            alreadyReadCount <- alreadyReadCount + count
         return buffer
     }
 
@@ -89,15 +92,19 @@ type ClientMessage =
             let! result =
                 async {
                     if messageType = killByte then
+                        Logger.error $"received kill"
                         return Kill |> Some
                     elif messageType = fuzzByte then
+                        Logger.error $"received fuzz"
                         let! moduleName = deserializeString stream
                         let! methodToken = deserializeInt stream
                         return Fuzz (moduleName, methodToken) |> Some
                     elif messageType = setupOutputDirByte then
+                        Logger.error $"received setup"
                         let! assembly = deserializeAssembly stream
                         return Setup assembly |> Some
                     elif messageType = returnAssemblyByte then
+                        Logger.error $"received return"
                         let! assembly = deserializeAssembly stream
                         return ReturnAssembly assembly |> Some
                     else

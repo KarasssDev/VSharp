@@ -51,9 +51,13 @@ type FuzzerApplication (outputDir) =
 
     let server =
         let init () =
+            Logger.error "1"
             let server = TcpListener(IPAddress.Any, Docker.fuzzerContainerPort)
+            Logger.error "2"
             server.Start ()
+            Logger.error "3"
             let client = server.AcceptTcpClient ()
+            Logger.error "4"
             client.GetStream()
 
         FuzzerCommunicator (init, ServerMessage.serialize, ClientMessage.deserialize)
@@ -72,9 +76,11 @@ type FuzzerApplication (outputDir) =
                 assembly <- newAssembly
                 return false
             | Fuzz (moduleName, methodToken) ->
+                Logger.error "Try resolve method"
                 let methodBase = Reflection.resolveMethodBaseFromAssembly assembly moduleName methodToken
+                Logger.error "Try get method"
                 let method = Application.getMethod methodBase
-
+                Logger.error "Try set entry main"
                 Interop.InstrumenterCalls.setEntryMain assembly moduleName methodToken
 
                 Logger.error $"Start fuzzing {moduleName} {methodToken}"

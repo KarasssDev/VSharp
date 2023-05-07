@@ -10,11 +10,12 @@ open VSharp.Reflection
 
 [<EntryPoint>]
 let main argv =
-    //while Debugger.IsAttached |> not do ()
     if (argv.Length < 1) then
         internalfail "Missing log file folder path"
     let logFileFolderPath = argv[0]
-    Logger.configureWriter <| new StreamWriter (File.OpenWrite $"{logFileFolderPath}{Path.DirectorySeparatorChar}fuzzer.log")
+    let writer = new StreamWriter (File.OpenWrite $"{logFileFolderPath}{Path.DirectorySeparatorChar}fuzzer.log")
+    Logger.configureWriter writer
+    System.Console.SetError writer
     Logger.error $"PID: {Process.GetCurrentProcess().Id}"
     Logger.error "Fuzzer started!"
     let app = FuzzerApplication ()
