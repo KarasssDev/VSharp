@@ -7,6 +7,19 @@
         <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     </PropertyGroup>
 
+    <Choose>
+        <When Condition="$(Configuration) == 'Release'">
+            <PropertyGroup>
+                <CoverageBuildType>Release</CoverageBuildType>
+            </PropertyGroup>
+        </When>
+        <Otherwise>
+            <PropertyGroup>
+                <CoverageBuildType>Debug</CoverageBuildType>
+            </PropertyGroup>
+        </Otherwise>
+    </Choose>
+
     <ItemGroup>
         <Compile Include="Config.fs" />
         <Compile Include="Fuzzer.fs" />
@@ -26,21 +39,21 @@
     </ItemGroup>
 
     <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('Linux')) ">
-        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-debug\libvsharpCoverage.so">
+        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-$(CoverageBuildType)\libvsharpCoverage.so">
             <Link>libvsharpConcolic.so</Link>
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
 
     <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('OSX')) ">
-        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-debug\libvsharpCoverage.dylib">
+        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-$(CoverageBuildType)\libvsharpCoverage.dylib">
             <Link>libvsharpConcolic.dylib</Link>
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
 
     <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('Windows')) ">
-        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-debug\libvsharpCoverage.dll">
+        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-$(CoverageBuildType)\libvsharpCoverage.dll">
             <Link>libvsharpConcolic.dll</Link>
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
