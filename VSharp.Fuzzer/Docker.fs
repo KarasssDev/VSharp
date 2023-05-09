@@ -81,7 +81,7 @@ let startFuzzer outputPath dllPaths =
         let instrumenterSetupOptions = [
             EnvVar("CORECLR_PROFILER", "{2800fea6-9667-4b42-a2b6-45dc98e77e9e}")
             EnvVar("CORECLR_ENABLE_PROFILING", "1")
-            EnvVar("CORECLR_PROFILER_PATH", "/app/libvsharpConcolic.so")
+            EnvVar("CORECLR_PROFILER_PATH", "/app/libvsharpCoverage.so")
         ]
 
         let mountDllPathsOptions =
