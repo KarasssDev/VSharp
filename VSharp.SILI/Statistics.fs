@@ -197,6 +197,7 @@ type public SILIStatistics() =
                 Interlocked.Exchange(ref isVisitedBlocksNotCoveredByTestsRelevant, 0) |> ignore
 
             setCoveredIfNeed currentLoc
+        | Some currentLoc -> setCoveredIfNeed currentLoc
         | _ -> ()
 
     member x.IsCovered (loc : codeLocation) =
