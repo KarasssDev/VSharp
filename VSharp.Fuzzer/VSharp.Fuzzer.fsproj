@@ -7,19 +7,6 @@
         <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     </PropertyGroup>
 
-    <Choose>
-        <When Condition="$(Configuration) == 'Release'">
-            <PropertyGroup>
-                <CoverageBuildType>Release</CoverageBuildType>
-            </PropertyGroup>
-        </When>
-        <Otherwise>
-            <PropertyGroup>
-                <CoverageBuildType>Debug</CoverageBuildType>
-            </PropertyGroup>
-        </Otherwise>
-    </Choose>
-
     <ItemGroup>
         <Compile Include="Config.fs" />
         <Compile Include="Fuzzer.fs" />
@@ -31,32 +18,12 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\VSharp.CoverageRunner\VSharp.CoverageRunner.csproj" />
       <ProjectReference Include="..\VSharp.Generator\VSharp.Generator.fsproj" />
       <ProjectReference Include="..\VSharp.IL\VSharp.IL.fsproj" />
       <ProjectReference Include="..\VSharp.SILI.Core\VSharp.SILI.Core.fsproj" />
       <ProjectReference Include="..\VSharp.TestGenerator\VSharp.TestGenerator.fsproj" />
       <ProjectReference Include="..\VSharp.Utils\VSharp.Utils.fsproj" />
-    </ItemGroup>
-
-    <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('Linux')) ">
-        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-$(CoverageBuildType)\libvsharpCoverage.so">
-            <Link>libvsharpConcolic.so</Link>
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
-
-    <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('OSX')) ">
-        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-$(CoverageBuildType)\libvsharpCoverage.dylib">
-            <Link>libvsharpConcolic.dylib</Link>
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
-
-    <ItemGroup Condition=" $([MSBuild]::IsOSPlatform('Windows')) ">
-        <Content Include="..\VSharp.CoverageInstrumenter\cmake-build-$(CoverageBuildType)\libvsharpCoverage.dll">
-            <Link>libvsharpConcolic.dll</Link>
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
     </ItemGroup>
 
     <ItemGroup>
