@@ -58,6 +58,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Initialize(IUnknown *pICorProfilerInfoUnk
     open_log(name);
 #endif
 
+    LOG(tout << "kek" << std::endl);
     InitializeProbes();
 
     // reading environment variables to determine the running mode

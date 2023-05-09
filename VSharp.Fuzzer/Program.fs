@@ -16,12 +16,21 @@ let setupApplication (argv: string array) =
     Fuzzer.Logger.setupLogger outputDir
     if (argv.Length = 2) then
         match argv[1] with
-        | "--debug" -> Fuzzer.Logger.setDebugVerbosity ()
+        | "--debug-log-verbosity" -> Fuzzer.Logger.setDebugVerbosity ()
         | _ -> internalfail $"Unexpected second arg {argv[1]}"
     FuzzerApplication outputDir
 
 [<EntryPoint>]
 let main argv =
-    let app = setupApplication argv
-    app.Start() |> Async.RunSynchronously
+    //while not Debugger.IsAttached do ()
+    try
+        let app = setupApplication argv
+        Fuzzer.Logger.logTrace "Application initialized"
+        app.Start() |> Async.RunSynchronously
+    with
+        | e ->
+            Fuzzer.Logger.logError $"Unhandled exception: {e.Message}"
+            Fuzzer.Logger.logError $"Inner exception: {e.StackTrace}"
+            Fuzzer.Logger.logError $"Inner exception: {e.InnerException.Message}"
+            
     0

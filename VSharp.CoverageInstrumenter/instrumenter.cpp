@@ -27,6 +27,7 @@ mdMethodDef vsharp::mainToken = 0;
 bool vsharp::rewriteMainOnly = false;
 
 void SetEntryMain(char* assemblyName, int assemblyNameLength, char* moduleName, int moduleNameLength, int methodToken) {
+    LOG(tout << "received entry main2" << std::endl);
     mainAssemblyNameLength = assemblyNameLength;
     mainAssemblyName = new WCHAR[assemblyNameLength];
     memcpy(mainAssemblyName, assemblyName, assemblyNameLength * sizeof(WCHAR));
@@ -47,8 +48,15 @@ void GetHistory(UINT_PTR size, UINT_PTR bytes) {
     for (auto el : coverageHistory) {
         sizeBytes += el->size();
     }
-
+    if (coverageHistory.size() == 0)
+    {
+        sizeBytes += sizeof(int);
+    }
     char *buffer = (char*)malloc(sizeBytes); // the buffer pointer moves further after each serialization
+    if (coverageHistory.size() == 0)
+    {
+        WRITE_BYTES(int, buffer, 42);
+    }
     auto beginning = buffer; // remembering the first point to check the sizes were counted correctly
     WRITE_BYTES(int, buffer, coverageHistory.size());
     for (auto el : coverageHistory) {

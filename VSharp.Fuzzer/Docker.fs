@@ -110,7 +110,7 @@ let startFuzzer outputPath dllPaths =
     let appArgs = [
         outputPath
         #if DEBUG
-        "--debug"
+        "--debug-log-verbosity"
         #endif
     ]
 

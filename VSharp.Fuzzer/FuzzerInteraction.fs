@@ -24,16 +24,21 @@ type private FuzzerCommunicator<'a, 'b> (
         stream <- init ()
         Fuzzer.Logger.logTrace "Initialized communicator"
 
-    member this.ReadMessage () = deserialize (stream :> Stream)
+    member this.ReadMessage () =
+        Fuzzer.Logger.logTrace "Try read message"
+        deserialize (stream :> Stream)
 
     member this.SendMessage msg =
+        Fuzzer.Logger.logTrace "Try send message"
         async {
             do! stream.WriteAsync(serialize msg).AsTask() |> Async.AwaitTask
             do! stream.FlushAsync () |> Async.AwaitTask
         }
 
     member this.ReadAll onEach =
+        Fuzzer.Logger.logTrace "Start start ReadAll"
         async {
+            Fuzzer.Logger.logTrace "Start ReadAll"
             let mutable completed = false
             while not completed do
                 let! message = this.ReadMessage ()
@@ -105,7 +110,9 @@ type FuzzerApplication (outputDir: string) =
                 return true
         }
 
-    member this.Start () = server.ReadAll handleRequest
+    member this.Start () =
+        Fuzzer.Logger.logTrace "Try start application"
+        server.ReadAll handleRequest
 
 type FuzzerInteraction (
     cancellationToken: CancellationToken,
@@ -132,13 +139,14 @@ type FuzzerInteraction (
             info.EnvironmentVariables.["CORECLR_PROFILER_PATH"] <- "libvsharpCoverage.so"
             info.WorkingDirectory <- Directory.GetCurrentDirectory()
             info.FileName <- "dotnet"
-            info.Arguments <- $"VSharp.Fuzzer.dll {outputPath} --debug"
+            info.Arguments <- $"/home/viktor/Documents/code/work/VSharp/VSharp.Fuzzer/bin/Debug/net6.0/VSharp.Fuzzer.dll {outputPath} --debug-log-verbosity"
             info.UseShellExecute <- false
             info.RedirectStandardInput <- false
             info.RedirectStandardOutput <- false
-            info.RedirectStandardError <- false
+            info.RedirectStandardError <- false 
             info
         Process.Start(config)
+        //Unchecked.defaultof<Process>
 
     let killFuzzer () = fuzzerContainer.Kill ()
     let client =
@@ -184,10 +192,12 @@ type FuzzerInteraction (
             match msg with
             | Statistics s ->
                 let deserializedStatistic = CoverageDeserializer.getHistory s
-                Logger.error $"Kek: {deserializedStatistic.Length}"
-                //(CoverageDeserializer.getHistory s)[0] |> toSiliStatistic |> saveStatistic
+                assert (deserializedStatistic.Length = 1)
+                deserializedStatistic[0] |> toSiliStatistic |> saveStatistic
+                Logger.error "received stat"
                 return false
             | End ->
+                Logger.error "received end"
                 return true
         }
 

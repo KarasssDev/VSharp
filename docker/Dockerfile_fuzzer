@@ -27,7 +27,7 @@ RUN VSHARP_RUNNER_ARCHIVE_NAME="$(find /source -type f -name '*fuzzer*.zip')" \
 	&& rm ${VSHARP_RUNNER_ARCHIVE_NAME}
 
 # publish fuzzer application
-RUN dotnet publish -c Release -o /app
+RUN dotnet publish -c Debug -o /app
 
 FROM ubuntu/dotnet-runtime:6.0-22.04_beta
 

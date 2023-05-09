@@ -76,7 +76,9 @@ type ClientMessage =
 
 
     static member deserialize (stream: Stream) =
+        Fuzzer.Logger.logTrace "Try deserialize message"
         async {
+            Fuzzer.Logger.logTrace "Try read message type"
             let! messageType = readNBytes stream 1
 
             let! result =
