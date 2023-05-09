@@ -10,6 +10,7 @@ let mutable private cancellationToken: CancellationToken option = None
 let setupIOCancellationToken newToken = cancellationToken <- Some newToken 
 
 let private readNBytes (stream: Stream) n =
+    Fuzzer.Logger.logTrace $"Try read {n} bytes"
     async {
         let buffer = Array.zeroCreate<byte> n
         let mutable alreadyReadCount = 0
@@ -19,8 +20,10 @@ let private readNBytes (stream: Stream) n =
                 | Some tok -> stream.ReadAsync (buffer, alreadyReadCount, n - alreadyReadCount, tok) |> Async.AwaitTask
                 | None -> stream.ReadAsync (buffer, alreadyReadCount, n - alreadyReadCount) |> Async.AwaitTask
             alreadyReadCount <- alreadyReadCount + count
+        Fuzzer.Logger.logTrace $"Read {n} bytes"
         return buffer
     }
+    
 
 let private serializeInt (n: int) = BitConverter.GetBytes n
 let private deserializeInt (stream: Stream) =

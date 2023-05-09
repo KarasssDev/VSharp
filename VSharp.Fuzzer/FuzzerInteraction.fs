@@ -1,6 +1,7 @@
 namespace VSharp.Fuzzer
 
 open System
+open System.Diagnostics
 open System.IO
 open System.Net
 open System.Net.Sockets
@@ -21,6 +22,7 @@ type private FuzzerCommunicator<'a, 'b> (
 
     do
         stream <- init ()
+        Fuzzer.Logger.logTrace "Initialized communicator"
 
     member this.ReadMessage () = deserialize (stream :> Stream)
 
@@ -121,12 +123,29 @@ type FuzzerInteraction (
     // let pathToClient = $"libvsharpConcolic{extension}"
     // let profiler = $"%s{Directory.GetCurrentDirectory()}%c{Path.DirectorySeparatorChar}%s{pathToClient}"
 
-    let fuzzerContainer = Docker.startFuzzer outputPath dllPaths
+    let fuzzerContainer =
+        //Docker.startFuzzer outputPath dllPaths
+        let config =
+            let info = ProcessStartInfo()
+            info.EnvironmentVariables.["CORECLR_PROFILER"] <- "{2800fea6-9667-4b42-a2b6-45dc98e77e9e}"
+            info.EnvironmentVariables.["CORECLR_ENABLE_PROFILING"] <- "1"
+            info.EnvironmentVariables.["CORECLR_PROFILER_PATH"] <- "libvsharpCoverage.so"
+            info.WorkingDirectory <- Directory.GetCurrentDirectory()
+            info.FileName <- "dotnet"
+            info.Arguments <- $"VSharp.Fuzzer.dll {outputPath} --debug"
+            info.UseShellExecute <- false
+            info.RedirectStandardInput <- false
+            info.RedirectStandardOutput <- false
+            info.RedirectStandardError <- false
+            info
+        Process.Start(config)
+
     let killFuzzer () = fuzzerContainer.Kill ()
     let client =
         let rec connect (tcpClient: TcpClient) =
             try
                 tcpClient.Connect("localhost", Docker.fuzzerContainerPort)
+                Logger.error "Connected!!!!"
             with
                 | _ ->
                     Thread.Sleep(10)
@@ -164,30 +183,32 @@ type FuzzerInteraction (
         async {
             match msg with
             | Statistics s ->
-                (CoverageDeserializer.getHistory s)[0] |> toSiliStatistic |> saveStatistic
+                let deserializedStatistic = CoverageDeserializer.getHistory s
+                Logger.error $"Kek: {deserializedStatistic.Length}"
+                //(CoverageDeserializer.getHistory s)[0] |> toSiliStatistic |> saveStatistic
                 return false
             | End ->
                 return true
         }
 
-    do
-        let innerTimeout =
-            FuzzerInfo.defaultFuzzerConfig.MaxTest
-            * FuzzerInfo.defaultFuzzerConfig.Timeout
-            * 2
-        let innerTimeoutCancellationToken =
-            let tokSource = new CancellationTokenSource(innerTimeout)
-            tokSource.Token
-        let linkedCancellationToken =
-            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, innerTimeoutCancellationToken).Token
-        setupIOCancellationToken linkedCancellationToken
-        linkedCancellationToken.Register(fun () ->
-            killFuzzer ()
-            Logger.warning "Fuzzer killed by timeout"
-        ) |> ignore
+    // do
+    //     let innerTimeout =
+    //         FuzzerInfo.defaultFuzzerConfig.MaxTest
+    //         * FuzzerInfo.defaultFuzzerConfig.Timeout
+    //         * 2
+    //     let innerTimeoutCancellationToken =
+    //         let tokSource = new CancellationTokenSource(innerTimeout)
+    //         tokSource.Token
+    //     let linkedCancellationToken =
+    //         CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, innerTimeoutCancellationToken).Token
+    //     setupIOCancellationToken linkedCancellationToken
+    //     linkedCancellationToken.Register(fun () ->
+    //         killFuzzer ()
+    //         Logger.warning "Fuzzer killed by timeout"
+    //     ) |> ignore
 
     member this.Fuzz (moduleName: string, methodToken: int) =
-        Logger.trace $"Send to fuzz {methodToken}"
+        Logger.error $"Send to fuzz {methodToken}"
         client.SendMessage (Fuzz (moduleName, methodToken))
 
     member this.WaitStatistics ()  =
@@ -199,6 +220,8 @@ type FuzzerInteraction (
             Logger.trace "Fuzzer stopped"
         }
 
-    member this.Setup assembly = Setup assembly |> client.SendMessage
+    member this.Setup assembly =
+        Logger.error "Setup!!!!"
+        Setup assembly |> client.SendMessage
 
 
