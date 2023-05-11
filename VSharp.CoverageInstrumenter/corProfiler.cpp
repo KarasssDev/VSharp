@@ -51,6 +51,8 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Initialize(IUnknown *pICorProfilerInfoUnk
 
     const char* isPassive = std::getenv("COVERAGE_ENABLE_PASSIVE");
 
+    const char* isPassive = std::getenv("COVERAGE_ENABLE_PASSIVE");
+
 #ifdef _LOGGING
     const char* name = isPassive == nullptr ? "lastrun.log" : "lastcoverage.log";
     open_log(name);
