@@ -423,20 +423,17 @@ type public SILI(options : SiliOptions) =
             reportFinished <- wrapOnTest onFinished
             reportError <- wrapOnError onException
             try
-                let initializeAndStartFuzzer cancellationToken () =
-                    async {
+                let initializeAndStartFuzzer cancellationToken =
+                    task {
                         let targetAssemblyPath = (Seq.head isolated).Module.Assembly.Location
-                        let fuzzer = FuzzerInteraction(
-                            cancellationToken,
-                            statistics.SetBasicBlocksAsCoveredByTest "fuzzer",
-                            [Directory.GetParent(targetAssemblyPath).FullName],
-                            options.outputDirectory.FullName
-                        )
-                        do! fuzzer.Setup targetAssemblyPath
-                        for m in isolated do
-                            do! fuzzer.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
-                        do! fuzzer.WaitStatistics ()
-                    } |> Async.RunSynchronously
+                        do!
+                            FuzzerInteraction(
+                                cancellationToken,
+                                statistics.SetBasicBlocksAsCoveredByTest "fuzzer",
+                                [Directory.GetParent(targetAssemblyPath).FullName],
+                                options.outputDirectory.FullName
+                            ).StartFuzzing targetAssemblyPath isolated
+                    }
 
                 let initializeAndStart () =
                     Logger.error "SE started"
@@ -472,7 +469,8 @@ type public SILI(options : SiliOptions) =
                             new CancellationTokenSource(int(timeout * 1.5))
                         else new CancellationTokenSource()
                     let tok = tokSource.Token
-                    Task.Run(initializeAndStartFuzzer tok, tok)
+                    initializeAndStartFuzzer tok
+
                 let explorationTask = Task.Run(initializeAndStart)
                 let tasks = [|explorationTask; fuzzerTask|]
                 let finished =

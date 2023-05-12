@@ -4,50 +4,67 @@ module VSharp.Fuzzer.FuzzerMessage
 open System
 open System.IO
 open System.Threading
+open System.Threading.Tasks
 open VSharp
 
-let mutable private cancellationToken: CancellationToken option = None
-let setupIOCancellationToken newToken = cancellationToken <- Some newToken 
+type private DeserializerMonad<'a> = Stream -> CancellationToken -> Task<'a>
+let runDeserializer (stream: Stream) (token: CancellationToken) (m: DeserializerMonad<'a>) = m stream token
 
-let private readNBytes (stream: Stream) n =
-    Fuzzer.Logger.logTrace $"Try read {n} bytes"
-    async {
-        let buffer = Array.zeroCreate<byte> n
-        let mutable alreadyReadCount = 0
-        while alreadyReadCount <> n do
-            let! count =
-                match cancellationToken with
-                | Some tok -> stream.ReadAsync (buffer, alreadyReadCount, n - alreadyReadCount, tok) |> Async.AwaitTask
-                | None -> stream.ReadAsync (buffer, alreadyReadCount, n - alreadyReadCount) |> Async.AwaitTask
-            alreadyReadCount <- alreadyReadCount + count
-        Fuzzer.Logger.logTrace $"Read {n} bytes"
-        return buffer
-    }
-    
+type DeserializeBuilder () =
+    member this.Bind (m: DeserializerMonad<'a>, k: 'a -> DeserializerMonad<'b>): DeserializerMonad<'b> =
+        fun stream token ->
+            task {
+                let! v = m stream token
+                let! result = k v stream token
+                return result
+            }
+    member this.Return (v: 'a): DeserializerMonad<'a> = fun _ _ -> task { return v }
+
+let deserialize = DeserializeBuilder()
+
+let private readNBytes (n: int): DeserializerMonad<byte array> =
+    Fuzzer.Logger.logError $"Try read {n} bytes"
+    fun stream token ->
+        task {
+            let buffer = Array.zeroCreate<byte> n
+            let mutable alreadyReadCount = 0
+            while alreadyReadCount <> n do
+                let! count = stream.ReadAsync (buffer, alreadyReadCount, n - alreadyReadCount, token)
+                alreadyReadCount <- alreadyReadCount + count
+            Fuzzer.Logger.logError $"Read {n} bytes"
+            return buffer
+        }
+
 
 let private serializeInt (n: int) = BitConverter.GetBytes n
-let private deserializeInt (stream: Stream) =
-    async {
-        let! bytes = readNBytes stream 4
+
+let x: DeserializerMonad<byte array> = readNBytes 4
+
+let private deserializeInt () =
+    deserialize {
+        let! bytes = readNBytes 4
         return BitConverter.ToInt32 bytes
     }
+
 let serializeByteArray (bytes: byte array) =
     Array.concat [
         serializeInt bytes.Length
         bytes
     ]
-let deserializeByteArray (stream: Stream) =
-    async {
-        let! size = deserializeInt stream
-        return! readNBytes stream size
+
+let deserializeByteArray ()  =
+    deserialize {
+        let! size = deserializeInt ()
+        let! array = readNBytes size
+        return array
     }
 
 let private serializeString (str: string) =
     System.Text.UTF32Encoding.UTF32.GetBytes str |> serializeByteArray
 
-let private deserializeString (stream: Stream) =
-    async {
-        let! bytes = deserializeByteArray stream 
+let private deserializeString () =
+    deserialize {
+        let! bytes = deserializeByteArray ()
         return System.Text.UTF32Encoding.UTF32.GetString bytes
     }
 
@@ -75,37 +92,28 @@ type ClientMessage =
             ]
 
 
-    static member deserialize (stream: Stream) =
+    static member deserialize (stream: Stream) cancellationToken =
         Fuzzer.Logger.logTrace "Try deserialize message"
-        async {
+        deserialize {
             Fuzzer.Logger.logTrace "Try read message type"
-            let! messageType = readNBytes stream 1
-
-            let! result =
-                async {
-                    if messageType = killByte then
-                        return Kill |> Some
-                    elif messageType = fuzzByte then
-                        let! moduleName = deserializeString stream
-                        let! methodToken = deserializeInt stream
-                        return Fuzz (moduleName, methodToken) |> Some
-                    elif messageType = setupTargetAssemblyByte then
-                        let! pathToTargetAssembly = deserializeString stream
-                        return Setup pathToTargetAssembly |> Some
-                    else
-                        return None
-                }
-
-            if result.IsNone then
-                let errorMessage = $"Unexpected message type byte {messageType[0]}"
-                Fuzzer.Logger.logError $"{errorMessage}"
-                internalfail $"{errorMessage}"
-
-            return result
+            let! messageType = readNBytes 1
+            if messageType = killByte then
+                return Kill |> Some
+            elif messageType = fuzzByte then
+                let! moduleName = deserializeString ()
+                let! methodToken = deserializeInt ()
+                return Fuzz (moduleName, methodToken) |> Some
+            elif messageType = setupTargetAssemblyByte then
+                let! pathToTargetAssembly = deserializeString ()
+                return Setup pathToTargetAssembly |> Some
+            else
+                return None
         }
+        |> runDeserializer stream cancellationToken
 
 let private statisticsByte = [| byte 1 |]
 let private endByte = [| byte 2 |]
+
 type ServerMessage =
     | Statistics of byte array
     | End
@@ -119,22 +127,14 @@ type ServerMessage =
             ]
         | End -> endByte
 
-    static member deserialize (stream: Stream) =
-        async {
-            let! messageType = readNBytes stream 1
-            let! result =
-                async {
-                    if messageType = statisticsByte then
-                        let! bytes = deserializeByteArray stream
-                        return Statistics bytes |> Some
-                    elif messageType = endByte then
-                        return Some End
-                    else
-                        return None
-                }
-
-            if result.IsNone  then
-                internalfail $"Unexpected message type byte {messageType[0]}"
-
-            return result
-        }
+    static member deserialize (stream: Stream) token =
+        deserialize {
+            let! messageType = readNBytes 1
+            if messageType = statisticsByte then
+                let! bytes = deserializeByteArray ()
+                return Statistics bytes |> Some
+            elif messageType = endByte then
+                return Some End
+            else
+                return None
+        } |> runDeserializer stream token

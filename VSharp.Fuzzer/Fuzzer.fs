@@ -6,12 +6,13 @@ open System.Reflection
 
 open System.Reflection.Emit
 open System.Text
+open System.Threading.Tasks
 open VSharp
 open VSharp.Core
 open VSharp.Fuzzer.FuzzerInfo
 
 [<RequireQualifiedAccess>]
-module Logger = 
+module Logger =
     let private fuzzerTag = "Fuzzer"
     let setupLogger (logFileFolderPath: string) =
         let writer = new System.IO.StreamWriter (
@@ -64,7 +65,7 @@ type Fuzzer ()  =
             | Some (StateModel (_, typeModel)) -> typeModel
             | None -> typeModel.CreateEmpty()
             | _ -> __unreachable__()
-        
+
         let getConcreteType =
             function
             | ConcreteType t -> t
@@ -209,7 +210,7 @@ type Fuzzer ()  =
         |> List.map this.FuzzingResultToCompletedState
         |> Seq.ofList
 
-    member this.FuzzWithAction target (action: state -> Async<unit>) =
+    member this.FuzzWithAction target (action: state -> Task<unit>) =
         method <- target
         methodBase <- method.MethodBase
 
@@ -219,7 +220,7 @@ type Fuzzer ()  =
         let rnds =
             [0..this.Config.MaxTest]
             |> List.map (fun _ -> Random(rndGenerator.Next() |> int))
-        async {
+        task {
             let mutable iteration = 0
             for rnd in rnds do
                 let result = this.FuzzOnceWithTimeout info iteration rnd

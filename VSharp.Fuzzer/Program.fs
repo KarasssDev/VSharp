@@ -1,12 +1,9 @@
 module VSharp.Fuzzer.Program
 
-open System.Diagnostics
-open System.IO
-open System.IO.Pipes
+
 open VSharp.Fuzzer
 open VSharp
-open VSharp.Interpreter.IL
-open VSharp.Reflection
+
 
 
 let setupApplication (argv: string array) =
@@ -26,11 +23,11 @@ let main argv =
     try
         let app = setupApplication argv
         Fuzzer.Logger.logTrace "Application initialized"
-        app.Start() |> Async.RunSynchronously
+        app.Start().Wait()
     with
         | e ->
             Fuzzer.Logger.logError $"Unhandled exception: {e.Message}"
             Fuzzer.Logger.logError $"Inner exception: {e.StackTrace}"
             Fuzzer.Logger.logError $"Inner exception: {e.InnerException.Message}"
-            
+
     0
