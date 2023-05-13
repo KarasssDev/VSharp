@@ -1,114 +1,24 @@
 namespace VSharp.Fuzzer
 
-open System
 open System.Diagnostics
 open System.IO
-open System.Net
 open System.Net.Sockets
 open System.Reflection
 open System.Threading
-open Microsoft.FSharp.Control
+open System.Threading.Tasks
 open VSharp
-open VSharp.Fuzzer
-open VSharp.Fuzzer.FuzzerMessage
-open VSharp.Interpreter.IL
+open VSharp.Fuzzer.Message
 
-type FuzzerApplication (outputDir: string) =
-    let fuzzer = Fuzzer ()
-    let ioTokenSource = new CancellationTokenSource()
-    let ioToken = ioTokenSource.Token
-
-    let server =
-
-        let init =
-            task {
-                let server = TcpListener(IPAddress.Any, Docker.fuzzerContainerPort)
-                server.Start ()
-                Logger.logTrace "Wait connection"
-                let! client = server.AcceptTcpClientAsync ioToken
-                Logger.logInfo "Client connected"
-                return client.GetStream()
-            }
-
-        let onIoFail _ =
-            Logger.error "IO error"
-
-        FuzzerCommunicator (
-            init,
-            ServerMessage.serialize,
-            ClientMessage.deserialize,
-            ioToken,
-            onIoFail
-        )
-
-    let mutable assembly = Unchecked.defaultof<Assembly>
-
-    let mutable freeId = -1
-    let nextId () =
-        freeId <- freeId + 1
-        freeId
-
-    let handleRequest command =
-        task {
-            match command with
-            | Setup pathToTargetAssembly ->
-                Logger.logTrace $"Received: Setup {pathToTargetAssembly}"
-                assembly <- AssemblyManager.LoadFromAssemblyPath pathToTargetAssembly
-                Logger.logTrace $"Target assembly was set to {assembly.FullName}"
-                return false
-            | Fuzz (moduleName, methodToken) ->
-                Logger.logTrace $"Received: Fuzz {moduleName} {methodToken}"
-                let methodBase = Reflection.resolveMethodBaseFromAssembly assembly moduleName methodToken
-                Logger.logTrace $"Resolved MethodBase {methodToken}"
-                let method = Application.getMethod methodBase
-                Logger.logTrace $"Resolved Method {methodToken}"
-                Interop.InstrumenterCalls.setEntryMain assembly moduleName methodToken
-                Logger.logTrace $"Was set entry main {moduleName} {methodToken}"
-                Logger.logTrace $"Start fuzzing {moduleName} {methodToken}"
-
-                do! fuzzer.FuzzWithAction method (fun state -> task {
-                    let test = TestGenerator.state2test false method state ""
-                    match test with
-                    | Some test ->
-                        let filePath = $"{outputDir}{Path.DirectorySeparatorChar}fuzzer_test{nextId ()}.vst"
-                        let hist = Interop.InstrumenterCalls.getRawHistory()
-                        Logger.logTrace "Got raw history from instrumenter"
-                        do! server.SendMessage (Statistics hist)
-                        Logger.logTrace "Sent raw history"
-                        test.Serialize filePath
-                        Logger.logInfo $"Test saved to {filePath}"
-                    | None -> ()
-                })
-                Logger.logInfo $"Successfully fuzzed {moduleName} {methodToken}"
-                return false
-            | Kill ->
-                Logger.logTrace "Received: Kill"
-                do! server.SendMessage End
-                return true
-        }
-
-    member this.Start () =
-        Logger.logTrace "Try start application"
-        task {
-            try
-                do! server.ReadAll handleRequest
-            with _ -> ioTokenSource.Cancel()
-        }
-
-
-type FuzzerInteraction (
+[<RequireQualifiedAccess>]
+type Interactor (
     cancellationToken: CancellationToken,
     saveStatistic: codeLocation seq -> unit,
     dllPaths: string seq,
     outputPath: string
     ) =
 
-    let ioTokenSource = new CancellationTokenSource ()
-    let ioToken = ioTokenSource.Token
-    let mainToken = CancellationTokenSource.CreateLinkedTokenSource([| ioToken; cancellationToken |]).Token
 
-    let fuzzerContainer =
-        //Docker.startFuzzer outputPath dllPaths
+    let startFuzzerProcess () =
         let config =
             let info = ProcessStartInfo()
             info.EnvironmentVariables.["CORECLR_PROFILER"] <- "{2800fea6-9667-4b42-a2b6-45dc98e77e9e}"
@@ -123,7 +33,14 @@ type FuzzerInteraction (
             info.RedirectStandardError <- false
             info
         Process.Start(config)
-        //Unchecked.defaultof<Process>
+
+    let startFuzzerContainer () = Docker.startFuzzer outputPath dllPaths
+
+    let ioTokenSource = new CancellationTokenSource ()
+    let ioToken = ioTokenSource.Token
+    let mainToken = CancellationTokenSource.CreateLinkedTokenSource([| ioToken; cancellationToken |]).Token
+
+    let fuzzerContainer = startFuzzerContainer ()
 
     let killFuzzer () = fuzzerContainer.Kill ()
 
@@ -188,7 +105,7 @@ type FuzzerInteraction (
                 Logger.error "received stat"
                 return false
             | End ->
-                Logger.error "received end" // Cancel other io op
+                Logger.error "received end"
                 ioTokenSource.Cancel()
                 return true
         }
@@ -214,11 +131,13 @@ type FuzzerInteraction (
 
     member private this.Setup assembly = Setup assembly |> client.SendMessage
 
-    member this.StartFuzzing targetAssemblyPath (isolated: MethodBase seq) =
+    member this.StartFuzzing (targetAssemblyPath: string) (isolated: MethodBase seq) (onCanceled: unit -> unit) =
          task {
-            do! this.Setup targetAssemblyPath
-            for m in isolated do
-                do! this.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
-            do! this.WaitStatistics ()
+            try
+                do! this.Setup targetAssemblyPath
+                for m in isolated do
+                    do! this.Fuzz(m.Module.FullyQualifiedName, m.MetadataToken)
+                do! this.WaitStatistics ()
+            with :? TaskCanceledException -> onCanceled ()
          }
 

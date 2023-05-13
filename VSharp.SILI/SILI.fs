@@ -426,13 +426,12 @@ type public SILI(options : SiliOptions) =
                 let initializeAndStartFuzzer cancellationToken =
                     task {
                         let targetAssemblyPath = (Seq.head isolated).Module.Assembly.Location
-                        do!
-                            FuzzerInteraction(
-                                cancellationToken,
-                                statistics.SetBasicBlocksAsCoveredByTest "fuzzer",
-                                [Directory.GetParent(targetAssemblyPath).FullName],
-                                options.outputDirectory.FullName
-                            ).StartFuzzing targetAssemblyPath isolated
+                        let dllsPaths = [Directory.GetParent(targetAssemblyPath).FullName]
+                        let saveStatistic = statistics.SetBasicBlocksAsCoveredByTest "fuzzer"
+                        let outputDir = options.outputDirectory.FullName
+                        let onCancelled () = Logger.error "Fuzzer canceled"
+                        let interactor = Interactor(cancellationToken, saveStatistic, dllsPaths, outputDir)
+                        do! interactor.StartFuzzing targetAssemblyPath isolated onCancelled
                     }
 
                 let initializeAndStart () =

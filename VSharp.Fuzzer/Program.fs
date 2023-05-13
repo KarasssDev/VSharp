@@ -15,7 +15,7 @@ let setupApplication (argv: string array) =
         match argv[1] with
         | "--debug-log-verbosity" -> Fuzzer.Logger.setDebugVerbosity ()
         | _ -> internalfail $"Unexpected second arg {argv[1]}"
-    FuzzerApplication outputDir
+    Application outputDir
 
 [<EntryPoint>]
 let main argv =

@@ -69,22 +69,21 @@ type Fuzzer ()  =
         let getConcreteType =
             function
             | ConcreteType t -> t
-            | MockType mock -> __notImplemented__ ()
-                // let getMock () =
-                //     let freshMock = Mocking.Type(mock.Name)
-                //     for t in mock.SuperTypes do
-                //         freshMock.AddSuperType t
-                //     for m in typeModel.typeMocks do
-                //         let rnd = Random(Int32.MaxValue)
-                //         let genClause () = this.Generator rnd Generator.Config.defaultGeneratorConfig m.BaseMethod.ReturnType
-                //         let clauses = Array.zeroCreate this.Config.MaxClauses |> Array.map genClause
-                //         freshMock.AddMethod(m.BaseMethod, clauses)
-                //     freshMock.Build moduleBuilder
-                // typeMocks.Add (mock.SuperTypes |> List.ofSeq, mock)
-                // Dict.getValueOrUpdate typeMocksCache mock getMock
+            | MockType mock ->
+                let getMock () =
+                    let freshMock = Mocking.Type(mock.Name)
+                    for t in mock.SuperTypes do
+                        freshMock.AddSuperType t
+                    for m in typeModel.typeMocks do
+                        let rnd = Random(Int32.MaxValue)
+                        let genClause () = this.Generator rnd Generator.Config.defaultGeneratorConfig m.BaseMethod.ReturnType
+                        let clauses = Array.zeroCreate this.Config.MaxClauses |> Array.map genClause
+                        freshMock.AddMethod(m.BaseMethod, clauses)
+                    freshMock.Build moduleBuilder
+                typeMocks.Add (mock.SuperTypes |> List.ofSeq, mock)
+                Dict.getValueOrUpdate typeMocksCache mock getMock
 
         try
-            // Fix generics
             match SolveGenericMethodParameters typeModel method with
             | Some(classParams, methodParams) ->
                 let classParams = classParams |> Array.map getConcreteType

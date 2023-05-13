@@ -1,4 +1,4 @@
-module VSharp.Fuzzer.FuzzerMessage
+module VSharp.Fuzzer.Message
 
 
 open System
@@ -23,7 +23,6 @@ type DeserializeBuilder () =
 let deserialize = DeserializeBuilder()
 
 let private readNBytes (n: int): DeserializerMonad<byte array> =
-    Fuzzer.Logger.logError $"Try read {n} bytes"
     fun stream token ->
         task {
             let buffer = Array.zeroCreate<byte> n
@@ -31,7 +30,6 @@ let private readNBytes (n: int): DeserializerMonad<byte array> =
             while alreadyReadCount <> n do
                 let! count = stream.ReadAsync (buffer, alreadyReadCount, n - alreadyReadCount, token)
                 alreadyReadCount <- alreadyReadCount + count
-            Fuzzer.Logger.logError $"Read {n} bytes"
             return buffer
         }
 
@@ -93,9 +91,7 @@ type ClientMessage =
 
 
     static member deserialize (stream: Stream) cancellationToken =
-        Fuzzer.Logger.logTrace "Try deserialize message"
         deserialize {
-            Fuzzer.Logger.logTrace "Try read message type"
             let! messageType = readNBytes 1
             if messageType = killByte then
                 return Kill |> Some
