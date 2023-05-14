@@ -287,9 +287,57 @@ module TestGenerator =
                 Some test
         | _ -> __unreachable__()
 
+    let private fillArgs (m: Method) (args : (obj * Type) array) =
+        // Creating state
+        let state = Memory.EmptyState()
+        state.model <- Memory.EmptyModel m
+
+        // Creating first frame and filling stack
+        let this =
+            if m.HasThis then
+                Some (Memory.ObjectToTerm state (fst (Array.head args)) m.DeclaringType)
+            else None
+        let args = Array.tail args
+        let createTerm (arg, argType) = Memory.ObjectToTerm state arg argType |> Some
+        let parameters = Array.map createTerm args |> List.ofArray
+
+        Memory.InitFunctionFrame state m this (Some parameters)
+
+        // TODO: Filling used type mocks
+
+        match state.model with
+        | StateModel model -> Memory.InitFunctionFrame model m this (Some parameters)
+        | _ -> __unreachable__()
+
+        // Returning filled state
+        state
+
     let public state2test isError (m : Method) (state : state) message =
         let indices = Dictionary<concreteHeapAddress, int>()
         let mockCache = Dictionary<ITypeMock, Mocking.Type>()
         let test = UnitTest((m :> IMethod).MethodBase)
 
         model2test test isError indices mockCache m state.model state message
+
+    let public fuzzingResultToTest
+        (m: Method)
+        (args: (obj * Type) array)
+        (returned: obj option)
+        (thrown: exn option) =
+            assert ( returned.IsSome <> thrown.IsSome )
+
+            match returned with
+            | Some v ->
+                let state = fillArgs m args
+                // Pushing result onto evaluation stack
+                let returnedTerm = Memory.ObjectToTerm state v m.ReturnType
+                state.evaluationStack <- EvaluationStack.Push returnedTerm state.evaluationStack
+                state2test false m state ""
+            | None ->
+                let state = fillArgs m args
+                // Filling exception register
+                let exnType = thrown.Value.GetType()
+                let exnRef = Memory.AllocateConcreteObject state exn exnType
+                // TODO: check if exception was thrown by user or by runtime
+                state.exceptionsRegister <- Unhandled(exnRef, false)
+                state2test false m state ""

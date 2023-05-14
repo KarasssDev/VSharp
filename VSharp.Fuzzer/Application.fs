@@ -62,8 +62,7 @@ type Application (outputDir: string) =
                 Logger.logTrace $"Was set entry main {moduleName} {methodToken}"
                 Logger.logTrace $"Start fuzzing {moduleName} {methodToken}"
 
-                do! fuzzer.FuzzWithAction method (fun state -> task {
-                    let test = TestGenerator.state2test false method state ""
+                do! fuzzer.FuzzWithAction method (fun test -> task {
                     match test with
                     | Some test ->
                         let filePath = $"{outputDir}{Path.DirectorySeparatorChar}fuzzer_test{nextId ()}.vst"

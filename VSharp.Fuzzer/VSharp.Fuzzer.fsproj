@@ -5,6 +5,8 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <OutputType>Exe</OutputType>
         <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+        <Configurations>Debug;Release;DebugFuzzer</Configurations>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
 
     <ItemGroup>

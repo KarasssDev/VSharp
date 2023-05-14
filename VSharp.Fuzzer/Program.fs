@@ -1,9 +1,9 @@
 module VSharp.Fuzzer.Program
 
 
+open System.Diagnostics
 open VSharp.Fuzzer
 open VSharp
-
 
 
 let setupApplication (argv: string array) =
@@ -11,15 +11,14 @@ let setupApplication (argv: string array) =
         internalfail "Missing log file folder path"
     let outputDir = argv[0]
     Fuzzer.Logger.setupLogger outputDir
-    if (argv.Length = 2) then
-        match argv[1] with
-        | "--debug-log-verbosity" -> Fuzzer.Logger.setDebugVerbosity ()
-        | _ -> internalfail $"Unexpected second arg {argv[1]}"
     Application outputDir
 
 [<EntryPoint>]
 let main argv =
-    //while not Debugger.IsAttached do ()
+    #if DEBUGFUZZER
+    while not Debugger.IsAttached do ()
+    #endif
+
     try
         let app = setupApplication argv
         Fuzzer.Logger.logTrace "Application initialized"
