@@ -23,6 +23,8 @@ module Logger =
         Logger.configureWriter writer
         #if DEBUG || DEBUGFUZZER
         Logger.enableTag Logger.fuzzerTraceTag
+        // Logger.suppressTag Logger.noTag
+        Logger.currentLogLevel <- Logger.Trace
         #endif
 
     let logError fmt = Logger.errorWithTag Logger.fuzzerTraceTag fmt

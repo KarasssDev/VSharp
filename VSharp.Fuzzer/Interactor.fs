@@ -37,7 +37,7 @@ type Interactor (
             info.EnvironmentVariables.["CORECLR_PROFILER_PATH"] <- $"{Directory.GetCurrentDirectory()}{Path.DirectorySeparatorChar}libvsharpCoverage{extension}"
             info.WorkingDirectory <- Directory.GetCurrentDirectory()
             info.FileName <- "dotnet"
-            info.Arguments <- $"VSharp.Fuzzer.dll {outputPath} --debug-log-verbosity"
+            info.Arguments <- $"VSharp.Fuzzer.dll {outputPath}"
             info.UseShellExecute <- false
             info.RedirectStandardInput <- false
             info.RedirectStandardOutput <- false
@@ -57,6 +57,7 @@ type Interactor (
         startFuzzerProcess ()
         #else
         startFuzzerContainer ()
+        //startFuzzerProcess ()
         #endif
 
     let connectFuzzer () =
@@ -118,7 +119,7 @@ type Interactor (
                 deserializedStatistic[0] |> toSiliStatistic |> saveStatistic
                 return false
             | End ->
-                ioTokenSource.Cancel()
+                //ioTokenSource.Cancel()
                 return true
         }
 
@@ -142,8 +143,9 @@ type Interactor (
         communicator <- connectFuzzer ()
 
         mainToken.Register(fun () ->
-            fuzzer.Kill ()
-            Logger.warning "Fuzzer killed"
+            if not fuzzer.HasExited  then
+                fuzzer.Kill ()
+                failwith "Fuzzer killed"
         ) |> ignore
 
         task {

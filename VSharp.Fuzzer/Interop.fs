@@ -44,8 +44,6 @@ module InstrumenterCalls =
     let getRawHistory () =
         let sizePtr = NativePtr.stackalloc<uint> 1
         let dataPtrPtr = NativePtr.stackalloc<nativeint> 1
-        Logger.error $"pointer before: {NativePtr.toNativeInt dataPtrPtr}"
-        Logger.error $"value before: {NativePtr.read dataPtrPtr}"
 
         GetHistory(NativePtr.toNativeInt sizePtr, NativePtr.toNativeInt dataPtrPtr)
 

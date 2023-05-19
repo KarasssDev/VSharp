@@ -33,6 +33,7 @@ module Logger =
     let public enableTimestamps value = writeTimestamps <- value
     let public isTagEnabled tag = tagFilter tag
     let public enableTag tag = suppressedTags.Remove tag |> ignore
+    let public suppressTag tag = suppressedTags.Add tag |> ignore
 
     let LevelToString = function
         | 1 -> "Critical"

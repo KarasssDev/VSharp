@@ -643,7 +643,9 @@ module API =
                 let method = GetCurrentExploringFunction state
                 match method with
                 | _ when state.exceptionsRegister.UnhandledError -> Nop
-                | _ when callStackSize = 1 -> Types.Cast result method.ReturnType
+                // callStackSize = 2 is correct state when 'this' is struct
+                | _ when callStackSize = 1 || callStackSize = 2 && method.DeclaringType.IsValueType ->
+                    Types.Cast result method.ReturnType
                 | _ -> internalfailf "Method is not finished! Stack trace = %O" CallStack.stackTraceString state.stack
             | _ -> internalfail "EvaluationStack size was bigger than 1"
 
