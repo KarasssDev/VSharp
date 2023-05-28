@@ -244,7 +244,6 @@ void vsharp::Track_EnterMain(OFFSET offset, int methodId, int isSpontaneous) {
     emptyStacks();
     setMainThread();
     stackBalanceUp();
-    coverageHistory.push_back(currentCoverage);
 }
 
 void vsharp::Track_Leave(OFFSET offset, int methodId) {
@@ -256,6 +255,7 @@ void vsharp::Track_Leave(OFFSET offset, int methodId) {
 void vsharp::mainLeft() {
     unsetMainThread();
     disableProbes();
+    coverageHistory.push_back(currentCoverage);
     ::currentCoverage = nullptr;
 }
 
