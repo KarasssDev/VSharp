@@ -45,7 +45,6 @@ module Loader =
             CSharpUtilsAssembly.GetType("VSharp.CSharpUtils.CharUnicodeInfo")
             CSharpUtilsAssembly.GetType("VSharp.CSharpUtils.BlockChain")
             CSharpUtilsAssembly.GetType("VSharp.CSharpUtils.GC")
-            CSharpUtilsAssembly.GetType("VSharp.CSharpUtils.DateTimeUtils")
             CSharpUtilsAssembly.GetType("VSharp.CSharpUtils.ThreadUtils")
             CSharpUtilsAssembly.GetType("VSharp.CSharpUtils.DelegateUtils")
             CSharpUtilsAssembly.GetType("VSharp.CSharpUtils.DiagnosticsUtils")
@@ -138,6 +137,9 @@ module Loader =
 
             // VSharp
             "System.Int32 IntegrationTests.ExceptionsControlFlow.ConcreteThrow()"
+
+            // DateTime
+            "System.Boolean System.DateTime.SystemSupportsLeapSeconds()"
         ]
 
     let isInvokeInternalCall (fullMethodName : string) =
