@@ -10,3 +10,6 @@ module internal DateTime =
 
     [<Implements("System.DateTime System.DateTime.get_Now()")>]
     val internal get_Now : state -> term list -> term
+
+    [<Implements("System.IntPtr System.DateTime.GetGetSystemTimeAsFileTimeFnPtr()")>]
+    val internal GetGetSystemTimeAsFileTimeFnPtr : state -> term list -> term

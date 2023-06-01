@@ -140,7 +140,6 @@ module Loader =
 
             // DateTime
             "System.Boolean System.DateTime.SystemSupportsLeapSeconds()"
-            "System.IntPtr System.DateTime.GetGetSystemTimeAsFileTimeFnPtr()"
         ]
 
     let isInvokeInternalCall (fullMethodName : string) =

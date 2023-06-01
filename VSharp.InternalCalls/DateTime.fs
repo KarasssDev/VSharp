@@ -17,3 +17,7 @@ module internal DateTime =
         assert List.isEmpty args
         let actualTime = DateTime.Now
         Memory.ObjectToTerm state actualTime typeof<DateTime>
+
+    let internal GetGetSystemTimeAsFileTimeFnPtr (_ : state) (args : term list) =
+        assert List.isEmpty args
+        Terms.MakeNullPtr typeof<Void>
