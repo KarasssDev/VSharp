@@ -1,15 +1,15 @@
 namespace VSharp.Fuzzer
 
 open System
-open System.Collections.Generic
 open System.Reflection
 
-open System.Reflection.Emit
 open System.Text
+open System.Threading
 open System.Threading.Tasks
+open JetBrains.Lifetimes
 open VSharp
 open VSharp.Core
-open VSharp.Fuzzer.FuzzerInfo
+open VSharp.Fuzzer.Config
 open VSharp.Interpreter.IL
 
 [<RequireQualifiedAccess>]
@@ -19,11 +19,9 @@ module Logger =
         let writer = new System.IO.StreamWriter (
             System.IO.File.OpenWrite $"{logFileFolderPath}{System.IO.Path.DirectorySeparatorChar}fuzzer.log"
         )
-        Console.SetError writer
         Logger.configureWriter writer
         #if DEBUG || DEBUGFUZZER
         Logger.enableTag Logger.fuzzerTraceTag
-        // Logger.suppressTag Logger.noTag
         Logger.currentLogLevel <- Logger.Trace
         #endif
 
@@ -40,8 +38,8 @@ module Logger =
 
 type FuzzingMethodInfo = {
     Method: MethodBase
-    ArgsInfo: (Generator.Config.GeneratorConfig * Type) array
-    ThisInfo: (Generator.Config.GeneratorConfig * Type) option
+    ArgsInfo: (GeneratorConfig * Type) array
+    ThisInfo: (GeneratorConfig * Type) option
 }
 
 type FuzzingResult =
@@ -52,6 +50,7 @@ type Fuzzer ()  =
 
     let mutable method = Unchecked.defaultof<Method>
     let mutable methodBase = Unchecked.defaultof<MethodBase>
+    let ignoreIfNotFinished = false
     let typeStorage = typeStorage()
 
     member val private Config = defaultFuzzerConfig with get, set
@@ -86,19 +85,20 @@ type Fuzzer ()  =
     member private this.GetInfo () =
         let argsInfo =
             method.Parameters
-            |> Array.map (fun x -> Generator.Config.defaultGeneratorConfig, x.ParameterType)
+            |> Array.map (fun x -> defaultGeneratorConfig, x.ParameterType)
 
         let thisInfo =
             if method.HasThis then
-                Some (Generator.Config.defaultGeneratorConfig, method.DeclaringType)
+                Some (defaultGeneratorConfig, method.DeclaringType)
             else
                 None
         
         this.SolveGenerics method
         |> Option.map (fun methodBase -> { Method = methodBase; ArgsInfo = argsInfo; ThisInfo = thisInfo })
 
-    member private this.FuzzOnce (iteration: int) (methodInfo: FuzzingMethodInfo) (rnd: Random) =
+    member private this.FuzzOnceWithTimeout (iteration: int) (methodInfo: FuzzingMethodInfo) (rnd: Random) =
         try
+
             Logger.logTrace $"Start fuzzing iteration {iteration}"
             let method = methodInfo.Method
             let args = methodInfo.ArgsInfo |> Array.map (fun (config, t) -> this.Generator rnd config t, t)
@@ -109,24 +109,39 @@ type Fuzzer ()  =
 
             let argsWithThis = Array.append [|obj, method.DeclaringType|] args
 
-            try
-                Logger.logTrace $"Invoke method with \n{Logger.formatArray argsWithThis}"
-                let returned = method.Invoke(obj, Array.map fst args)
-                Logger.logTrace $"Method returned {returned}"
-                Returned (argsWithThis, returned) |> Some
-            with
-            | :? TargetInvocationException as e ->
-                Logger.logTrace $"Method thrown {e.InnerException.Message}"
-                Thrown (argsWithThis, e.InnerException) |> Some
-        with
-            | e ->
-                Logger.logWarning $"Fuzzing iteration {iteration} failed with: {e.Message}"
+            let invoke () =
+                try
+                    Logger.logTrace $"Invoke method with \n{Logger.formatArray argsWithThis}"
+                    let returned = method.Invoke(obj, Array.map fst args)
+                    Logger.logTrace $"Method returned {returned}"
+                    Returned (argsWithThis, returned)
+                with
+                | :? TargetInvocationException as e ->
+                    Logger.logTrace $"Method thrown {e.InnerException.Message}"
+                    Thrown (argsWithThis, e.InnerException)
+            
+            let invokeTask = Task.Run(invoke)
+            if invokeTask.Wait(defaultFuzzerConfig.Timeout) then
+                invokeTask.Result |> Some
+            elif not ignoreIfNotFinished then
+                Logger.logWarning "Time limit per method exceed, fuzzer stopped"
+                exit 0
+            else
                 None
+        with e ->
+            Logger.logWarning $"Fuzzing iteration {iteration} failed with: {e.Message}"
+            None
 
-    member this.FuzzOnceWithTimeout (methodInfo: FuzzingMethodInfo) (iteration: int) (rnd: Random) =
-        let fuzzOnce = Task.Run(fun () -> this.FuzzOnce iteration methodInfo rnd)
-        let finished = fuzzOnce.Wait(this.Config.Timeout)
-        if finished then fuzzOnce.Result else Logger.logInfo $"Fuzzer iteration {iteration} failed with time limit"; None
+    // member this.FuzzOnceWithTimeout (methodInfo: FuzzingMethodInfo) (iteration: int) (rnd: Random) =
+    //     let timeoutTokenSource = new CancellationTokenSource(this.Config.Timeout)
+    //     let fuzzOnce = Task.Run((fun () -> this.FuzzOnce iteration methodInfo rnd), timeoutTokenSource.Token)
+    //     if fuzzOnce.IsCompleted then
+    //         fuzzOnce.Result
+    //     else
+    //         fuzzOnce.Wait()
+    //         assert fuzzOnce.IsCanceled
+    //         Logger.logInfo $"Fuzzer iteration {iteration} failed with time limit"
+    //         None
 
     member this.FuzzingResultToTest (result: FuzzingResult) =
         match result with
@@ -147,7 +162,7 @@ type Fuzzer ()  =
             task {
                 let mutable iteration = 0
                 for rnd in rnds do
-                    let result = this.FuzzOnceWithTimeout info iteration rnd
+                    let result = this.FuzzOnceWithTimeout iteration info rnd
                     iteration <- iteration + 1
                     match result with
                     | Some v -> do! v |> this.FuzzingResultToTest |> action

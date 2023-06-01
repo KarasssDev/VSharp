@@ -41,7 +41,7 @@ type Interactor (
             info.UseShellExecute <- false
             info.RedirectStandardInput <- false
             info.RedirectStandardOutput <- false
-            info.RedirectStandardError <- false
+            info.RedirectStandardError <- true
             info
 
         Process.Start(config)
@@ -56,8 +56,8 @@ type Interactor (
         #if DEBUGFUZZER
         startFuzzerProcess ()
         #else
-        startFuzzerContainer ()
-        //startFuzzerProcess ()
+        // startFuzzerContainer ()
+        startFuzzerProcess ()
         #endif
 
     let connectFuzzer () =
@@ -145,7 +145,6 @@ type Interactor (
         mainToken.Register(fun () ->
             if not fuzzer.HasExited  then
                 fuzzer.Kill ()
-                failwith "Fuzzer killed"
         ) |> ignore
 
         task {

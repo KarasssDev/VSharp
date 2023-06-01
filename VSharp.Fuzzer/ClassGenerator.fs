@@ -2,7 +2,7 @@ module VSharp.Generator.ClassGenerator
 
 open System
 
-open VSharp.Generator.Config
+open VSharp.Fuzzer.Config
 open VSharp
 
 let private setAllFields (t : Type) (setter: Type -> obj) =

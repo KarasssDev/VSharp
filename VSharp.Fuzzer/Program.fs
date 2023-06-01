@@ -23,10 +23,8 @@ let main argv =
         let app = setupApplication argv
         Fuzzer.Logger.logTrace "Application initialized"
         app.Start().Wait()
-    with
-        | e ->
-            Fuzzer.Logger.logError $"Unhandled exception: {e.Message}"
-            Fuzzer.Logger.logError $"Inner exception: {e.StackTrace}"
-            Fuzzer.Logger.logError $"Inner exception: {e.InnerException.Message}"
+        0
+    with e ->
+        Fuzzer.Logger.logError $"Unhandled exception: {e.Message}"
+        1
 
-    0

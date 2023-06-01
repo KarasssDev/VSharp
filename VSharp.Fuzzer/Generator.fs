@@ -1,6 +1,7 @@
 module VSharp.Generator.Generator
 
 open System
+open VSharp.Fuzzer
 
 let rec generate (rnd: Random) (conf: Config.GeneratorConfig) (t: Type) =
     match t with

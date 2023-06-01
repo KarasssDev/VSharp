@@ -2,7 +2,7 @@ module VSharp.Generator.ArrayGenerator
 
 open System
 
-open VSharp.Generator.Config
+open VSharp.Fuzzer.Config
 open VSharp
 
 let (|Array|_|) (t : Type) = if t.IsArray then Some Array else None

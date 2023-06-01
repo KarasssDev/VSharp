@@ -62,6 +62,8 @@ void GetHistory(UINT_PTR size, UINT_PTR bytes) {
     for (auto el : coverageHistory) {
         el->serialize(buffer);
     }
+    LOG(tout << coverageHistory.size());
+    LOG(tout << buffer - beginning << " != " << sizeBytes);
     assert(buffer - beginning == sizeBytes);
     *(ULONG*)size = sizeBytes;
     *(char**)bytes = beginning;

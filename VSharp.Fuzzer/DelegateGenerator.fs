@@ -1,7 +1,7 @@
 module VSharp.Generator.DelegateGenerator
 
 open System
-open VSharp.Generator.Config
+open VSharp.Fuzzer.Config
 
 let (|Delegate|_|) (t: Type) = if t.IsSubclassOf (typeof<System.Delegate>) then Some Delegate else None
 

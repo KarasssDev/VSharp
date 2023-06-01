@@ -11,6 +11,13 @@
 
     <ItemGroup>
         <Compile Include="Config.fs" />
+        <Compile Include="ClassGenerator.fs" />
+        <Compile Include="InterfaceGenerator.fs" />
+        <Compile Include="DelegateGenerator.fs" />
+        <Compile Include="ArrayGenerator.fs" />
+        <Compile Include="EnumGenerator.fs" />
+        <Compile Include="PrimitiveGenerator.fs" />
+        <Compile Include="Generator.fs" />
         <Compile Include="Fuzzer.fs" />
         <Compile Include="Interop.fs" />
         <Compile Include="Docker.fs" />
@@ -23,7 +30,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\VSharp.CoverageRunner\VSharp.CoverageRunner.csproj" />
-      <ProjectReference Include="..\VSharp.Generator\VSharp.Generator.fsproj" />
       <ProjectReference Include="..\VSharp.IL\VSharp.IL.fsproj" />
       <ProjectReference Include="..\VSharp.SILI.Core\VSharp.SILI.Core.fsproj" />
       <ProjectReference Include="..\VSharp.TestGenerator\VSharp.TestGenerator.fsproj" />
@@ -32,6 +38,7 @@
 
     <ItemGroup>
       <PackageReference Include="FSharp.Core" Version="7.0.0" />
+      <PackageReference Include="JetBrains.Lifetimes" Version="2023.2.1" />
     </ItemGroup>
 
 </Project>

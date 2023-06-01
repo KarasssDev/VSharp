@@ -2,7 +2,7 @@ module VSharp.Generator.EnumGenerator
 
 open System
 
-open VSharp.Generator.Config
+open VSharp.Fuzzer.Config
 
 let (|Enum|_|) (t : Type) =
     if t.IsEnum then Some Enum else None

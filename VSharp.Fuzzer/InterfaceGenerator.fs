@@ -2,7 +2,7 @@ module VSharp.Generator.InterfaceGenerator
 
 open System
 
-open VSharp.Generator.Config
+open VSharp.Fuzzer.Config
 open VSharp
 
 let private instancesCache = System.Collections.Generic.Dictionary<Type, Type>()

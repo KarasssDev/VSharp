@@ -3,7 +3,7 @@ module VSharp.Generator.PrimitiveGenerator
 open System
 
 
-open VSharp.Generator.Config
+open VSharp.Fuzzer.Config
 open VSharp
 
 

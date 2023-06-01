@@ -26,8 +26,8 @@ type Application (outputDir: string) =
                 return client.GetStream()
             }
 
-        let onIoFail _ =
-            Logger.error "IO error"
+        let onIoFail (e: exn) =
+            Logger.error $"IO error: {e.Message}\n{e.StackTrace}"
 
         FuzzerCommunicator (
             init,

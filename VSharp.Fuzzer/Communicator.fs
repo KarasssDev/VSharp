@@ -18,8 +18,9 @@ type internal FuzzerCommunicator<'a, 'b> (
         task {
             try
                 do! io
-            with e ->
-                onIoFail e
+            with
+                | :? SocketException
+                | :? IOException as e -> onIoFail e
         }
 
     let traceInteraction (log: string) = Logger.traceWithTag Logger.fuzzerInteractionTraceTag $"{log}"
