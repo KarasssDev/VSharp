@@ -642,7 +642,7 @@ module API =
                 let result = EvaluationStack.Pop state.evaluationStack |> fst
                 let method = GetCurrentExploringFunction state
                 match method with
-                | _ when callStackSize = 1 -> Types.Cast result method.ReturnType
+                | _ when callStackSize = 1 || callStackSize = 2 -> Types.Cast result method.ReturnType
                 | _ when state.exceptionsRegister.UnhandledError -> Nop
                 | _ -> internalfailf "Method is not finished! Stack trace = %O" CallStack.stackTraceString state.stack
             | _ -> internalfail "EvaluationStack size was bigger than 1"

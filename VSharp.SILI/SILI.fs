@@ -3,6 +3,7 @@ namespace VSharp.Interpreter.IL
 open System
 open System.Reflection
 open System.Collections.Generic
+open System.Threading
 open System.Threading.Tasks
 open FSharpx.Collections
 
@@ -420,6 +421,10 @@ type public SILI(options : SiliOptions) =
             reportFinished <- wrapOnTest onFinished
             reportError <- wrapOnError onException
             try
+                let initializeAndStartFuzzer cancellationToken  =
+                    let saveStatistics = statistics.SetBasicBlocksAsCoveredByTest
+                    let outputDir = options.outputDirectory.FullName
+                    VSharp.Fuzzer.Interaction.startFuzzing isolated saveStatistics outputDir cancellationToken
                 let initializeAndStart () =
                     let trySubstituteTypeParameters method =
                         let emptyState = Memory.EmptyState()
@@ -447,9 +452,22 @@ type public SILI(options : SiliOptions) =
                     if not initialStates.IsEmpty then
                         x.AnswerPobs initialStates
                 let explorationTask = Task.Run(initializeAndStart)
+                let tasks =
+                    if options.enableFuzzer then
+                        Logger.error $"{options.enableFuzzer}"
+                        let fuzzerTask =
+                            let tokSource =
+                                if hasTimeout then
+                                    new CancellationTokenSource(int(timeout * 1.5))
+                                else new CancellationTokenSource()
+                            let tok = tokSource.Token
+                            initializeAndStartFuzzer tok
+                        [|explorationTask; fuzzerTask|]
+                    else
+                        [|explorationTask|]
                 let finished =
-                    if hasTimeout then explorationTask.Wait(int (timeout * 1.5))
-                    else explorationTask.Wait(); true
+                    if hasTimeout then Task.WaitAll(tasks, int (timeout * 1.5))
+                    else Task.WaitAll(tasks); true
                 if not finished then Logger.warning "Execution was cancelled due to timeout"
             with
             | :? AggregateException as e ->

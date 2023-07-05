@@ -178,7 +178,8 @@ namespace VSharp
                     releaseBranches: true,
                     maxBufferSize: 128,
                     checkAttributes: true,
-                    stopOnCoverageAchieved: 100
+                    stopOnCoverageAchieved: 100,
+                    enableFuzzer: false
                 );
 
             using var explorer = new SILI(options);

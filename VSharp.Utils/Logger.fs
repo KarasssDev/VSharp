@@ -7,6 +7,7 @@ module Logger =
 
     // Tag for state transitions info logs
     let stateTraceTag = "StateTrace"
+    let fuzzerTraceTag = "Fuzzer"
     let defaultTag = ""
 
     let Quiet = 0

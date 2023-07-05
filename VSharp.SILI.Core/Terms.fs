@@ -519,7 +519,9 @@ module internal Terms =
         | Constant(_, _, t), _
         | Expression(_, _, t), _ -> makeCast term t targetType
         | Union gvs, _ -> gvs |> List.map (fun (g, v) -> (g, primitiveCast v targetType)) |> Union
-        | _ -> __unreachable__()
+        | _ ->
+            Logger.errorWithTag "Fuzzing" $"{term}: {targetType}"
+            __unreachable__()
 
     let negate term =
         assert(isBool term)

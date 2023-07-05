@@ -177,6 +177,7 @@ module TestGenerator =
                 address |> Ref |> Memory.Read state |> term2Obj
             let arr2Obj = encodeArrayCompactly state model term2Obj
             let typ = state.allocatedTypes[addr]
+            Logger.traceWithTag "Fuzzing" $"typ: {typ}"
             let encodeMock = encodeTypeMock model state indices mockCache implementations test
             obj2test eval arr2Obj indices encodeMock test addr typ
         | Combined(terms, t) ->
@@ -211,7 +212,7 @@ module TestGenerator =
             else Memory.CallStackSize state = 1
 
         if not <| suitableState state
-            then internalfail "Finished state has many frames on stack! (possibly unhandled exception)"
+            then internalfail $"Finished state has many frames on stack: {Memory.CallStackSize state}! (possibly unhandled exception)"
 
         match model with
         | StateModel modelState ->
@@ -288,8 +289,18 @@ module TestGenerator =
         | _ -> __unreachable__()
 
     let public state2test isError (m : Method) (state : state) message =
+        Logger.error $"Generation finished!\nResulting state:\n{Print.Dump state}"
+        match state.model with
+        | StateModel state -> Logger.error $"Generation finished!\nResulting state model:\n{Print.Dump state}"
         let indices = Dictionary<concreteHeapAddress, int>()
         let mockCache = Dictionary<ITypeMock, Mocking.Type>()
         let test = UnitTest((m :> IMethod).MethodBase)
+        model2test test isError indices mockCache m state.model state message
 
+    let public state2testWithMockingCache isError (m : Method) (state : state) mockCache message =
+        Logger.error $"Generation finished!\nResulting state{state.complete}:\n{Print.Dump state}"
+        match state.model with
+        | StateModel state -> Logger.error $"Generation finished!\nResulting state model:\n{Print.Dump state}"
+        let indices = Dictionary<concreteHeapAddress, int>()
+        let test = UnitTest((m :> IMethod).MethodBase)
         model2test test isError indices mockCache m state.model state message

@@ -93,6 +93,7 @@ namespace VSharp.Test
         private readonly bool _guidedMode;
         private readonly bool _releaseBranches;
         private readonly bool _checkAttributes;
+        private readonly bool _enableFuzzer;
 
         public TestSvmAttribute(
             int expectedCoverage = -1,
@@ -105,7 +106,8 @@ namespace VSharp.Test
             SearchStrategy strat = SearchStrategy.BFS,
             CoverageZone coverageZone = CoverageZone.Class,
             TestsCheckerMode testsCheckerMode = TestsCheckerMode.RenderAndRun,
-            bool checkAttributes = true)
+            bool checkAttributes = true,
+            bool enableFuzzer = false)
         {
             if (expectedCoverage < 0)
                 _expectedCoverage = null;
@@ -122,6 +124,7 @@ namespace VSharp.Test
             _coverageZone = coverageZone;
             _testsCheckerMode = testsCheckerMode;
             _checkAttributes = checkAttributes;
+            _enableFuzzer = enableFuzzer;
         }
 
         public virtual TestCommand Wrap(TestCommand command)
@@ -139,7 +142,8 @@ namespace VSharp.Test
                 _strat,
                 _coverageZone,
                 _testsCheckerMode,
-                _checkAttributes
+                _checkAttributes,
+                _enableFuzzer
             );
         }
 
@@ -158,6 +162,7 @@ namespace VSharp.Test
             private readonly CoverageZone _baseCoverageZone;
             private readonly bool _renderTests;
             private readonly bool _checkAttributes;
+            private readonly bool _enableFuzzer;
 
             public TestSvmCommand(
                 TestCommand innerCommand,
@@ -171,6 +176,7 @@ namespace VSharp.Test
                 SearchStrategy strat,
                 CoverageZone coverageZone,
                 TestsCheckerMode testsCheckerMode,
+                bool enableFuzzer,
                 bool checkAttributes) : base(innerCommand)
             {
                 _baseCoverageZone = coverageZone;
@@ -219,6 +225,7 @@ namespace VSharp.Test
                 }
 
                 _checkAttributes = checkAttributes;
+                _enableFuzzer = enableFuzzer;
             }
 
             private TestResult Explore(TestExecutionContext context)
@@ -261,7 +268,8 @@ namespace VSharp.Test
                         releaseBranches: _releaseBranches,
                         maxBufferSize: 128,
                         checkAttributes: _checkAttributes,
-                        stopOnCoverageAchieved: _expectedCoverage ?? -1
+                        stopOnCoverageAchieved: _expectedCoverage ?? -1,
+                        enableFuzzer: _enableFuzzer
                     );
                     using var explorer = new SILI(_options);
 
