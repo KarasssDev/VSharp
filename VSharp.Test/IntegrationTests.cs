@@ -101,6 +101,7 @@ namespace VSharp.Test
         private readonly bool _checkAttributes;
         private readonly bool _hasExternMocking;
         private readonly OsType _supportedOs;
+        private readonly bool _enableFuzzer;
 
         public TestSvmAttribute(
             int expectedCoverage = -1,
@@ -113,7 +114,8 @@ namespace VSharp.Test
             TestsCheckerMode testsCheckerMode = TestsCheckerMode.RenderAndRun,
             bool checkAttributes = true,
             bool hasExternMocking = false,
-            OsType supportedOs = OsType.All)
+            OsType supportedOs = OsType.All,
+            bool enableFuzzer = true)
         {
             if (expectedCoverage < 0)
                 _expectedCoverage = null;
@@ -130,6 +132,7 @@ namespace VSharp.Test
             _checkAttributes = checkAttributes;
             _hasExternMocking = hasExternMocking;
             _supportedOs = supportedOs;
+            _enableFuzzer = enableFuzzer;
         }
 
         public virtual TestCommand Wrap(TestCommand command)
@@ -146,7 +149,8 @@ namespace VSharp.Test
                 _testsCheckerMode,
                 _checkAttributes,
                 _hasExternMocking,
-                _supportedOs
+                _supportedOs,
+                _enableFuzzer
             );
         }
 
@@ -166,6 +170,7 @@ namespace VSharp.Test
             private readonly bool _checkAttributes;
             private readonly bool _hasExternMocking;
             private readonly OsType _supportedOs;
+            private readonly bool _enableFuzzer;
 
             public TestSvmCommand(
                 TestCommand innerCommand,
@@ -179,7 +184,8 @@ namespace VSharp.Test
                 TestsCheckerMode testsCheckerMode,
                 bool checkAttributes,
                 bool hasExternMocking,
-                OsType supportedOs) : base(innerCommand)
+                OsType supportedOs,
+                bool enableFuzzer) : base(innerCommand)
             {
                 _baseCoverageZone = coverageZone;
                 _baseSearchStrat = TestContext.Parameters[SearchStrategyParameterName] == null ?
@@ -223,6 +229,7 @@ namespace VSharp.Test
 
                 _hasExternMocking = hasExternMocking;
                 _supportedOs = supportedOs;
+                _enableFuzzer = enableFuzzer;
             }
 
             private TestResult IgnoreTest(TestExecutionContext context)
@@ -286,7 +293,8 @@ namespace VSharp.Test
                         releaseBranches: _releaseBranches,
                         maxBufferSize: 128,
                         checkAttributes: _checkAttributes,
-                        stopOnCoverageAchieved: _expectedCoverage ?? -1
+                        stopOnCoverageAchieved: _expectedCoverage ?? -1,
+                        enableFuzzer: _enableFuzzer
                     );
                     using var explorer = new SILI(_options);
 

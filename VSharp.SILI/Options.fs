@@ -32,4 +32,5 @@ type SiliOptions = {
     maxBufferSize : int
     checkAttributes : bool
     stopOnCoverageAchieved : int
+    enableFuzzer: bool
 }

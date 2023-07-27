@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netcoreapp6.0</TargetFramework>
+        <TargetFramework>netcoreapp7.0</TargetFramework>
         <Configurations>Debug;Release;DebugTailRec</Configurations>
         <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
@@ -35,6 +35,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\VSharp.Fuzzer\VSharp.Fuzzer.fsproj" />
         <ProjectReference Include="..\VSharp.IL\VSharp.IL.fsproj" />
         <ProjectReference Include="..\VSharp.InternalCalls\VSharp.InternalCalls.fsproj" />
         <ProjectReference Include="..\VSharp.SILI.Core\VSharp.SILI.Core.fsproj" />
